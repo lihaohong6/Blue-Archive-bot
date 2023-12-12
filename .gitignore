@@ -1,0 +1,12 @@
+/user-password.py
+/*.lwp
+__pycache__
+/apicache-py3
+/cache
+/json
+/logs
+/manga
+/upload
+/result.txt
+/*.ctrl
+/sandbox.py
