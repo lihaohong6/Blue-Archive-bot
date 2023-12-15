@@ -1,3 +1,4 @@
+from itertools import takewhile
 import json
 from pathlib import Path
 import pickle
@@ -71,6 +72,57 @@ def load_momotalk() -> dict[int, list[dict]]:
     return result
 
 
+def find_convergence_point(conversations: list[dict], options: list[dict]) -> tuple[int, list[list[int]]]:
+    """
+    When dialogue branches based on Sensei's choice, find out at which point the conversation
+    converges to the same lines.
+
+    Args:
+        conversations (list[dict]): all lines in this conversation
+        options (list[int]): a list of all possible options
+
+    Returns:
+        tuple[int, list[list[int]]]: convergence point and ids of unique lines for each options
+    """
+    conversation_dict: dict[int, list[dict]] = {}
+    for c in conversations:
+        gid = c['MessageGroupId']
+        if gid not in conversation_dict:
+            conversation_dict[gid] = []
+        conversation_dict[gid].append(c)
+    
+    paths: list[list[int]] = []
+    for option_index, option in enumerate(options):
+        paths.append([])
+        oid = option['NextGroupId']
+        paths[option_index].append(oid)
+        while oid in conversation_dict:
+            next_id = conversation_dict[oid][-1]['NextGroupId']
+            if next_id not in conversation_dict:
+                break
+            paths[option_index].append(next_id)
+            oid = next_id
+    path_sets: list[set[int]] = []
+    for path in paths:
+        path_set = set()
+        for cid in path:
+            path_set.add(cid)
+        path_sets.append(path_set)
+    convergence = -1
+    for cid in paths[0]:
+        for path_set in path_sets:
+            if cid not in path_set:
+                break
+        else:
+            convergence = cid
+            break
+    # assert convergence != -1, str(options)
+    
+    return convergence, [list(takewhile(lambda x: x != convergence, path)) for path in paths]
+        
+    
+
+
 student_reply_group: int = 0
 def make_conversation(conversation: list[dict], char_name: str, 
                       conversation_counter: int) -> str:
@@ -84,15 +136,15 @@ def make_conversation(conversation: list[dict], char_name: str,
     prev_group_id = -1
     i = 0
     counter = 1
-    student_reply_flag = False
     global student_reply_group
-    student_reply_counter = 0
     relationship_event_found = 0
+    reply_convergence = -1
+    reply_group: dict[int, int] = {}
+    no_favor_schedule: set[int] = set()
     while i < n:
         c = conversation[i]
         group_id = c['MessageGroupId']
         if c['MessageCondition'] == "Answer":
-            student_reply_flag = False
             # Sensei's line
             if i < n - 1 and group_id == conversation[i + 1]['MessageGroupId']:
                 candidates = [c]
@@ -104,12 +156,20 @@ def make_conversation(conversation: list[dict], char_name: str,
                 # TODO: find convergence point and create a dict labelling all groups before this convergence point
                 #  for each student line, query this convergence point
                 # set flags for differing student responses
-                student_reply_flag = True
+                reply_convergence, reply_list = find_convergence_point(conversation, candidates)
+                for index, replies in enumerate(reply_list):
+                    if len(replies) > 0:
+                        no_favor_schedule.add(replies[-1])
+                    for reply_id in replies:
+                        reply_group[reply_id] = index + 1
+                if len(reply_list) > 0 and len(reply_list[-1]) > 0:
+                    no_favor_schedule.remove(reply_list[-1][-1])
                 student_reply_group += 1
-                student_reply_counter = 0
                 line += f"|group{counter}={student_reply_group}\n"
             else:
                 line = f"|{counter}=sensei\n|text{counter}={c['MessageEN']}\n"
+                if group_id in reply_group:
+                    line += f"|group{counter}={student_reply_group}\n|option{counter}={reply_group[group_id]}\n"
         else:
             # student response
             if c['MessageType'] == 'Image':
@@ -119,17 +179,10 @@ def make_conversation(conversation: list[dict], char_name: str,
             if group_id != prev_group_id:
                 line += f"\n|name{counter}={char_name_short}\n|profile{counter}={char_name}"
             line += "\n"
-            if student_reply_flag:
-                # if ids don't match, we are in a sequence of options
-                if conversation[i - 1]['NextGroupId'] != group_id:
-                    # in a multi-message response; no need to increment counter
-                    if prev_group_id != group_id:
-                        student_reply_counter += 1
-                    line += f"|group{counter}={student_reply_group}\n|option{counter}={student_reply_counter}\n"
-                else:
-                    student_reply_flag = False
+            if group_id in reply_group:
+                line += f"|group{counter}={student_reply_group}\n|option{counter}={reply_group[group_id]}\n"
         # extra conditions ensure that relatioship popup does not appear twice
-        if c['FavorScheduleId'] != 0 and (i == n - 1 or (conversation[i + 1]['MessageGroupId'] == c['NextGroupId'])):
+        if c['FavorScheduleId'] != 0 and group_id not in no_favor_schedule:
             counter += 1
             line += f"\n|{counter}=relationship\n|name{counter}={char_name_short}\n"
             relationship_event_found += 1
@@ -137,7 +190,7 @@ def make_conversation(conversation: list[dict], char_name: str,
         prev_group_id = group_id
         i += 1
         counter += 1
-    assert relationship_event_found == 1, f"For {char_name}: relationship event should occur exactly once; occurred {relationship_event_found} time(s) instead"
+    assert relationship_event_found == 1, f"For {char_name}: relationship event should occur exactly once; occurred {relationship_event_found} time(s) instead. Last group id: {group_id}"
         
     result.append("}}")
     # result.append("</tab>")
@@ -169,10 +222,9 @@ def make_character_momotalk(momotalk: list[dict], char_name: str) -> str:
     current = []
     # result = ["<tabs plain>"]
     result = []
-    result.append(make_seo(char_name))
     counter = 1
     global student_reply_group
-    student_reply_group = 1
+    student_reply_group = 0
     
     for m in momotalk:
         if m['MessageCondition'] == 'FavorRankUp':
@@ -185,7 +237,7 @@ def make_character_momotalk(momotalk: list[dict], char_name: str) -> str:
     
     ## result.append("</tabs>")
     result.append("[[Category:MomoTalk]]")
-    return "\n\n".join(result)
+    return make_seo(char_name) + "\n\n".join(result)
 
 
 s = pwb.Site()
@@ -217,8 +269,9 @@ def main():
                 continue
             char_name = char_dict[char_id]
             char_name = char_name[0].capitalize() + char_name[1:]
-            create_momotalk_page(char_name, make_character_momotalk(momotalk, char_name))
-            out_file.write(make_character_momotalk(momotalk, char_name))
+            momotalk_text = make_character_momotalk(momotalk, char_name)
+            # create_momotalk_page(char_name, momotalk_text)
+            out_file.write(momotalk_text)
             out_file.write("\n\n")
 
 
