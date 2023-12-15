@@ -1,15 +1,15 @@
 import json
 from pathlib import Path
-import re
-import pywikibot as pwb
-from pywikibot.pagegenerators import GeneratorFactory
 import sys
-from momotalk import get_character_table
+from utils import get_character_table, load_favor_schedule
+
 sys.stdout.reconfigure(encoding='utf-8')
 
 localization_list: list[str] = []
 localization_dict: dict[int, int] = {}
-def get_localization(id: int) -> tuple[str, str]:
+
+
+def get_localization(localization_id: int) -> tuple[str, str]:
     if len(localization_list) == 0:
         loaded = json.load(open("json/LocalizeScenarioExcelTable.json", "r", encoding="utf-8"))
         loaded = loaded['DataList']
@@ -18,11 +18,13 @@ def get_localization(id: int) -> tuple[str, str]:
             row_text = row['En']
             localization_list.append(row_text)
             localization_dict[row_id] = index
-    index = localization_dict[id]
+    index = localization_dict[localization_id]
     return localization_list[index], localization_list[index + 1]
 
 
 favor_events: dict[int, list[dict]] = {}
+
+
 def get_favor_event(query_group_id: int) -> list[dict]:
     if len(favor_events) == 0:
         for i in range(1, 10):
@@ -38,7 +40,10 @@ def get_favor_event(query_group_id: int) -> list[dict]:
 
 
 scenario_character_name: dict[str, dict] = {}
+
+
 def get_character_id(text_ko: str) -> dict[str, tuple[str, str, str]] | None:
+    from xxhash import xxh32
     if len(scenario_character_name) is None:
         path = Path("json/ScenarioCharacterNameExcelTable.json")
         loaded = json.load(open(path, "r", encoding="utf-8"))
@@ -46,19 +51,6 @@ def get_character_id(text_ko: str) -> dict[str, tuple[str, str, str]] | None:
         for row in loaded:
             cid = row['CharacterName']
             scenario_character_name[cid] = row
-    
-    
-
-def load_favor_schedule() -> dict[int, list[dict]]:
-    loaded = json.load(open("json/AcademyFavorScheduleExcelTable.json", "r", encoding="utf-8"))
-    loaded = loaded['DataList']
-    result = {}
-    for row in loaded:
-        cid = row['CharacterId']
-        if cid not in result:
-            result[cid] = []
-        result[cid].append(row)
-    return result
 
 
 def make_nav_span(event: dict) -> str:
@@ -87,7 +79,7 @@ def main():
     for character_id, event_list in favor_schedule.items():
         print(make_favor_page(character_table[character_id], event_list))
         break
-    
-    
+
+
 if __name__ == "__main__":
     main()

@@ -10,3 +10,4 @@ __pycache__
 /result.txt
 /*.ctrl
 /sandbox.py
+/.idea
