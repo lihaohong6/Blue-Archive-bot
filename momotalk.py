@@ -62,9 +62,8 @@ student_reply_group: int = 0
 def make_conversation(conversation: list[dict], char_name: str,
                       conversation_counter: int,
                       unlock_favor: int) -> str:
-    result = []
-    result.append(f'<span id="momotalk-{conversation_counter}"></span><span id="momotalk-favor-{unlock_favor}"></span>')
-    result.append("{{MomoTalk")
+    result = [f'<span id="momotalk-{conversation_counter}"></span><span id="momotalk-favor-{unlock_favor}"></span>',
+              "{{MomoTalk"]
     char_name_short = char_name.split()[0]
     n = len(conversation)
 
@@ -117,7 +116,8 @@ def make_conversation(conversation: list[dict], char_name: str,
         # extra conditions ensure that relatioship popup does not appear twice
         if c['FavorScheduleId'] != 0 and group_id not in no_favor_schedule:
             counter += 1
-            line += f"\n|{counter}=relationship\n|name{counter}={char_name_short}\n"
+            line += f"\n|{counter}=relationship\n|name{counter}={char_name}\n"
+            line += f"|favor{counter}={unlock_favor}\n"
             relationship_event_found += 1
         result.append(line)
         prev_group_id = group_id
@@ -149,6 +149,8 @@ def make_character_momotalk(momotalk: list[dict], char_name: str, favor_levels: 
     if suspicion > 3:
         print(f"ERROR: {char_name}'s MomoTalk contains too much whitespace")
         return ""
+    if char_name.startswith("Arisu"):
+        char_name = char_name.replace("Arisu", "Aris")
 
     current = []
     result = []
@@ -175,7 +177,11 @@ def make_character_momotalk(momotalk: list[dict], char_name: str, favor_levels: 
 s = pwb.Site()
 
 
+confirm = True
+
+
 def create_momotalk_page(student_name, text):
+    global confirm
     p = pwb.Page(s, f"{student_name}/MomoTalk")
     # if p.exists():
     #     print(f"ERROR: {student_name}/MomoTalk already exists")
@@ -189,8 +195,13 @@ def create_momotalk_page(student_name, text):
     if text.strip() == "":
         print(f"ERROR: text for {student_name} is empty.")
         return
+    if confirm:
+        x = input("Save? ")
+        if x.lower() == 'a':
+            confirm = False
+    setattr(p, "_bot_may_edit", True)
     p.text = text
-    p.save("remove whitespace in the beginning; ")
+    p.save("multiple fixes and changes to MomoTalk")
 
 
 def get_character_favor_schedule(char_id: int) -> list[int]:
@@ -208,7 +219,7 @@ def main():
             char_name = char_dict[char_id]
             char_name = char_name[0].capitalize() + char_name[1:]
             momotalk_text = make_character_momotalk(momotalk, char_name, get_character_favor_schedule(char_id))
-            # create_momotalk_page(char_name, momotalk_text)
+            create_momotalk_page(char_name, momotalk_text)
             out_file.write(momotalk_text)
             out_file.write("\n\n")
 
