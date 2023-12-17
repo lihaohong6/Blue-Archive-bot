@@ -57,3 +57,35 @@ def load_favor_schedule() -> dict[int, list[dict]]:
                 cached_favor_schedule[cid] = []
             cached_favor_schedule[cid].append(row)
     return cached_favor_schedule
+
+
+scenario_character_name: dict[int, dict] = {}
+
+
+def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
+    from xxhash import xxh32
+    if len(scenario_character_name) == 0:
+        path = Path("json/ScenarioCharacterNameExcelTable.json")
+        loaded = json.load(open(path, "r", encoding="utf-8"))
+        loaded = loaded['DataList']
+        for row in loaded:
+            cid = row['CharacterName']
+            scenario_character_name[cid] = row
+    search_text = re.search(r"^\d+;([^;]+);\d+", text_ko)
+    if search_text is None:
+        return None
+    text_ko = search_text.group(1)
+    hashed = int(xxh32(text_ko).intdigest())
+    if hashed not in scenario_character_name:
+        raise NotImplementedError("Cannot find scenario character name in table")
+        return None
+    row = scenario_character_name[hashed]
+    name = row['NameEN']
+    nickname = row['NicknameEN']
+    spine = row['SpinePrefabName'].split("/")[-1]
+    portrait = row['SmallPortrait'].split("/")[-1]
+    return name, nickname, spine, portrait
+
+
+if __name__ == "__main__":
+    raise NotImplementedError("Do not run this script directly.")

@@ -11,3 +11,4 @@ __pycache__
 /*.ctrl
 /sandbox.py
 /.idea
+.DS_STORE
