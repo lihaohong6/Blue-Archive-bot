@@ -47,6 +47,10 @@ def make_nav_span(event: dict) -> str:
     return f'<span id="relationship-{event["OrderInGroup"]}"></span><span id="relationship-favor-{event["FavorRank"]}"></span>'
 
 
+zmc_regex = re.compile(r"#zmc;(instant|move);-?\d+,-?\d+;\d+(;\d+)?")
+st_regex = re.compile(r"#st;\[-?\d+,-?\d+];(serial|instant);\d+;")
+
+
 def make_favor_event(char_name: str, event: dict) -> str:
     from utils import get_scenario_character_id
     localization_id = event["LocalizeScenarioId"]
@@ -63,19 +67,27 @@ def make_favor_event(char_name: str, event: dict) -> str:
             lower = ""
 
         # process special commands
-        lower = lower.replace("\n", "")
         while re.search(r"#wait;\d+", lower) is not None:
             lower = re.sub(r"#wait;\d+", "", lower)
         if "#all;hide" in lower:
             lower = lower.replace("#all;hide", "")
-        while "#st;" in lower:
-            lower = re.sub(r"#st;\[-?\d+,-?\d+];(serial|instant);\d+;", "", lower)
+        while re.search(zmc_regex, lower) is not None:
+            lower, _ = re.subn(zmc_regex, "", lower)
+        while re.search(r"#\d;", lower) is not None:
+            lower, _ = re.subn(r"#\d;(hide|closeup|stiff|shake|dr|jump|d|em;)?", "", lower)
+        while re.search(st_regex, lower) is not None:
+            # TODO: resolve the speaker of st lines
+            lower, _ = re.subn(st_regex, "", lower)
+            lower = ""
             pass
+        while "#fontsize;" in lower:
+            lower = re.sub(r"#fontsize;\d+", "", lower)
         if "#clearst" in lower:
             lower = lower.replace("#clearst", "")
         if "#bgshake" in lower:
             lower = lower.replace("#bgshake", "")
 
+        lower = lower.strip()
         character_query_result = get_scenario_character_id(lower)
         if lower == "":
             # finished all special effects and no text left, so we are all good
@@ -90,7 +102,7 @@ def make_favor_event(char_name: str, event: dict) -> str:
             # student line
             name, nickname, spine, portrait = character_query_result
         else:
-            print("Unrecognizable line: " + script)
+            print("Unrecognizable line: " + script + "\nProcessed: " + lower)
 
         def parse_bgm():
             bgm_id = line['BGMId']
@@ -111,8 +123,15 @@ def main():
     favor_schedule = load_favor_schedule()
     character_table = get_character_table()
     for character_id, event_list in favor_schedule.items():
-        print(make_favor_page(character_table[character_id], event_list))
-        break
+        if character_id not in character_table:
+            print(f"Character id {character_id} has no corresponding name.")
+            continue
+        try:
+            make_favor_page(character_table[character_id], event_list)
+            print(character_table[character_id] + " done")
+        except NotImplementedError as e:
+            print(e)
+            print(character_table[character_id] + " failed")
 
 
 if __name__ == "__main__":

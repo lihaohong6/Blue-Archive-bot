@@ -71,13 +71,17 @@ def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
         for row in loaded:
             cid = row['CharacterName']
             scenario_character_name[cid] = row
-    search_text = re.search(r"^\d+;([^;]+);\d+", text_ko)
+    # search_text = re.search(r"^\d+;([^;a-zA-Z]+) ?([a-zA-Z]+)?;\d+;?", text_ko)
+    search_text = re.search(r"^\d+;([^;]+);\d+;?", text_ko)
     if search_text is None:
         return None
     text_ko = search_text.group(1)
+    # a -> A; b -> B
+    if text_ko[-1].isascii():
+        text_ko = text_ko[:-1] + text_ko[-1].upper()
     hashed = int(xxh32(text_ko).intdigest())
     if hashed not in scenario_character_name:
-        raise NotImplementedError("Cannot find scenario character name in table")
+        raise NotImplementedError(f"Cannot find scenario character name in table. Text: {text_ko}. Hash: {hashed}.")
         return None
     row = scenario_character_name[hashed]
     name = row['NameEN']
