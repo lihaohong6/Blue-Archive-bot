@@ -1,5 +1,7 @@
 from itertools import takewhile
 import pywikibot as pwb
+from pywikibot import Page
+from pywikibot.pagegenerators import PreloadingGenerator
 import sys
 
 from utils import get_character_table, load_momotalk, load_favor_schedule
@@ -177,15 +179,14 @@ def make_character_momotalk(momotalk: list[dict], char_name: str, favor_levels: 
 s = pwb.Site()
 
 
-confirm = True
+confirm = False
 
 
-def create_momotalk_page(student_name, text):
+def create_momotalk_page(p: pwb.Page, student_name, text):
     global confirm
-    p = pwb.Page(s, f"{student_name}/MomoTalk")
-    # if p.exists():
-    #     print(f"ERROR: {student_name}/MomoTalk already exists")
-    #     return
+    if p.exists():
+        print(f"ERROR: {student_name}/MomoTalk already exists")
+        return
     # if "#seo" in p.text:
     #     print(f"INFO: {student_name} already contains seo info")
     #     return
@@ -201,7 +202,7 @@ def create_momotalk_page(student_name, text):
             confirm = False
     setattr(p, "_bot_may_edit", True)
     p.text = text
-    p.save("multiple fixes and changes to MomoTalk")
+    p.save("auto-generate momotalk")
 
 
 def get_character_favor_schedule(char_id: int) -> list[int]:
@@ -212,6 +213,7 @@ def get_character_favor_schedule(char_id: int) -> list[int]:
 def main():
     char_dict = get_character_table()
     momotalk_dict = load_momotalk()
+    results: list[tuple[str, str]] = []
     with open("result.txt", "w", encoding="utf-8") as out_file:
         for char_id, momotalk in momotalk_dict.items():
             if char_id not in char_dict:
@@ -219,9 +221,14 @@ def main():
             char_name = char_dict[char_id]
             char_name = char_name[0].capitalize() + char_name[1:]
             momotalk_text = make_character_momotalk(momotalk, char_name, get_character_favor_schedule(char_id))
-            create_momotalk_page(char_name, momotalk_text)
+            results.append((char_name, momotalk_text))
             out_file.write(momotalk_text)
             out_file.write("\n\n")
+    pages = (pwb.Page(s, f"{pair[0]}/MomoTalk") for pair in results)
+    pages = list(PreloadingGenerator(pages))
+    for index, p in enumerate(pages):
+        create_momotalk_page(p, results[index][0], results[index][1])
+
 
 
 if __name__ == "__main__":
