@@ -27,6 +27,29 @@ def get_character_table() -> dict[int, str]:
     return result
 
 
+dev_name_map: dict[str, str] = {}
+
+
+def dev_name_to_canonical_name(dev_name: str) -> str:
+    if len(dev_name_map) == 0:
+        def read_dev_name_map(fname: str):
+            name_map = json.load(open(fname, "r", encoding="utf-8"))
+            for k, v in name_map.items():
+                wiki_name = v['firstname']
+                if v['variant'] is not None:
+                    wiki_name += f" ({v['variant']})"
+                dev_name_map[k] = wiki_name
+        read_dev_name_map('json/devname_map.json')
+        read_dev_name_map('json/devname_map_aux.json')
+    if dev_name == "Null":
+        return ""
+    if dev_name in dev_name_map:
+        return dev_name_map[dev_name]
+    if dev_name.capitalize() in dev_name_map:
+        return dev_name_map[dev_name.capitalize()]
+    return ""
+
+
 def load_momotalk() -> dict[int, list[dict]]:
     result = {}
     for i in range(0, 10):
@@ -72,10 +95,11 @@ def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
             cid = row['CharacterName']
             scenario_character_name[cid] = row
     # search_text = re.search(r"^\d+;([^;a-zA-Z]+) ?([a-zA-Z]+)?;\d+;?", text_ko)
-    search_text = re.search(r"^\d+;([^;]+);\d+;?", text_ko)
+    search_text = re.search(r"^\d+;([^;]+);(\d+);?", text_ko)
     if search_text is None:
         return None
     text_ko = search_text.group(1)
+    expression_number = search_text.group(2)
     # a -> A; b -> B
     if text_ko[-1].isascii():
         text_ko = text_ko[:-1] + text_ko[-1].upper()
@@ -87,8 +111,56 @@ def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
     name = row['NameEN']
     nickname = row['NicknameEN']
     spine = row['SpinePrefabName'].split("/")[-1]
+    if spine is not None and spine != "":
+        spine = spine.replace("CharacterSpine_", "")
+        spine = dev_name_to_canonical_name(spine)
+        spine += " " + expression_number
     portrait = row['SmallPortrait'].split("/")[-1]
+    if portrait is not None and portrait != "":
+        if "Student_Portrait_" in portrait:
+            portrait = portrait.replace("Student_Portrait_", "")
+            portrait = dev_name_to_canonical_name(portrait)
+        elif "NPC_Portrait_" in portrait:
+            portrait = portrait.replace("NPC_Portrait_", "")
+            portrait = dev_name_to_canonical_name(portrait)
+        portrait += " " + expression_number
+        
     return name, nickname, spine, portrait
+
+
+background_file_name: dict[int, str] = {}
+
+
+def get_background_file_name(background_id: int) -> str:
+    if len(background_file_name) == 0:
+        loaded = json.load(open("json/ScenarioBGNameExcelTable.json", "r", encoding="utf-8"))
+        loaded = loaded['DataList']
+        for row in loaded:
+            bg_id = row['Name']
+            bg_name: str = row['BGFileName']
+            background_file_name[bg_id] = bg_name.split("/")[-1]
+    return background_file_name[background_id]
+
+
+bgm_file_name: dict[int, tuple[str, list[float]]] = {}
+
+
+def get_bgm_file_name(query_id: int) -> tuple[str, list[float]]:
+    if len(bgm_file_name) == 0:
+        loaded = json.load(open("json/BGMExcelTable.json", "r", encoding="utf-8"))
+        loaded = loaded['DataList']
+        for row in loaded:
+            bgm_id = row['Id']
+            bgm_name: str = row['Path']
+            loop_start = row['LoopStartTime']
+            loop_end = row['LoopEndTime']
+            volume = row['Volume']
+            transition_time = row['LoopTranstionTime']
+            offset_time = row['LoopOffsetTime']
+            bgm_file_name[bgm_id] = (bgm_name.split("/")[-1], [loop_start, loop_end, volume, transition_time, offset_time])
+    if query_id in bgm_file_name:
+        return bgm_file_name[query_id]
+    return f"Bgm with id {query_id} not found."
 
 
 if __name__ == "__main__":
