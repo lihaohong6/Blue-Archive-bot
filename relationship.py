@@ -85,7 +85,7 @@ def strip_st_line(line: str) -> str:
     return line
 
 
-def make_favor_event(char_name: str, event: dict) -> str:
+def make_story(char_name: str, event: dict) -> str:
     global option_group
     from utils import get_scenario_character_id
     localization_id = event["LocalizeScenarioId"]
@@ -122,7 +122,8 @@ def make_favor_event(char_name: str, event: dict) -> str:
             lower = ""
             continue
         elif lower.startswith("#place;"):
-            result.append(f"|place={text}")
+            counter += 1
+            result.append(f"|place{counter}={text}")
             lower = ""
             continue
         
@@ -174,7 +175,7 @@ def make_favor_event(char_name: str, event: dict) -> str:
         elif lower.startswith("#na;("):
             counter += 1
             result.append(f"|{counter}=info\n|text{counter}={text}")
-        elif lower.startswith("#na;"):
+        elif lower.startswith("#na;") and character_query_result is None:
             counter += 1
             result.append(f"|{counter}=no-speaker\n|text{counter}={text}")
         elif lower.startswith("[s") or lower.startswith("[ns"):
@@ -217,12 +218,12 @@ def make_favor_event(char_name: str, event: dict) -> str:
     return f"={event_name}=\n{make_nav_span(event)}{event_summary}\n{result}"
 
 
-def make_favor_page(char_name: str, event_list: list[dict]) -> str:
+def make_story_page(char_name: str, event_list: list[dict]) -> str:
     result = []
     global option_group
     option_group = 0
     for event in event_list:
-        result.append(make_favor_event(char_name, event))
+        result.append(make_story(char_name, event))
     return "\n\n".join(result)
 
 
@@ -238,7 +239,7 @@ def main():
                 char_name = character_table[character_id]
                 if char_name != "Miyu (Swimsuit)":
                     continue
-                s = make_favor_page(char_name, event_list)
+                s = make_story_page(char_name, event_list)
                 f.write(char_name + "!!!\n\n")
                 f.write(s)
                 f.write("\n\n")

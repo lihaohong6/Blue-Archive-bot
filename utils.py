@@ -47,6 +47,7 @@ def dev_name_to_canonical_name(dev_name: str) -> str:
         return dev_name_map[dev_name]
     if dev_name.capitalize() in dev_name_map:
         return dev_name_map[dev_name.capitalize()]
+    print("Cannot find canonical name of " + dev_name)
     return ""
 
 
@@ -85,7 +86,7 @@ def load_favor_schedule() -> dict[int, list[dict]]:
 scenario_character_name: dict[int, dict] = {}
 
 
-def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
+def get_scenario_character_id(text_ko_original: str) -> tuple[str, str, str, str] | None:
     from xxhash import xxh32
     if len(scenario_character_name) == 0:
         path = Path("json/ScenarioCharacterNameExcelTable.json")
@@ -95,11 +96,20 @@ def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
             cid = row['CharacterName']
             scenario_character_name[cid] = row
     # search_text = re.search(r"^\d+;([^;a-zA-Z]+) ?([a-zA-Z]+)?;\d+;?", text_ko)
-    search_text = re.search(r"^\d+;([^;]+);(\d+);?", text_ko)
-    if search_text is None:
-        return None
-    text_ko = search_text.group(1)
-    expression_number = search_text.group(2)
+    search_text = re.search(r"^\d+;([^;]+);(\d+);?", text_ko_original)
+    if search_text is not None:
+        text_ko = search_text.group(1)
+        expression_number = search_text.group(2)
+        na = False
+    else:
+        search_text = re.search(r"#na;([^\n#;]+);", text_ko_original)
+        na = True
+        if search_text is not None:
+            text_ko = search_text.group(1)
+            expression_number = None
+        else:
+            return None
+            
     # a -> A; b -> B
     if text_ko[-1].isascii():
         text_ko = text_ko[:-1] + text_ko[-1].upper()
@@ -111,10 +121,11 @@ def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
     name = row['NameEN']
     nickname = row['NicknameEN']
     spine = row['SpinePrefabName'].split("/")[-1]
-    if spine is not None and spine != "":
+    if spine is not None and spine.strip() != "":
         spine = spine.replace("CharacterSpine_", "")
         spine = dev_name_to_canonical_name(spine)
-        spine += " " + expression_number
+        if not na:
+            spine += " " + expression_number
     portrait = row['SmallPortrait'].split("/")[-1]
     if portrait is not None and portrait != "":
         if "Student_Portrait_" in portrait:
@@ -123,8 +134,10 @@ def get_scenario_character_id(text_ko: str) -> tuple[str, str, str, str] | None:
         elif "NPC_Portrait_" in portrait:
             portrait = portrait.replace("NPC_Portrait_", "")
             portrait = dev_name_to_canonical_name(portrait)
-        portrait += " " + expression_number
-        
+        if not na:
+            portrait += " " + expression_number
+    if na:
+        spine, portrait = '', ''
     return name, nickname, spine, portrait
 
 

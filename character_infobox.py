@@ -10,7 +10,6 @@ s.login()
 gen = GeneratorFactory(s)
 gen.handle_args(['-cat:Characters galleries', '-ns:0'])
 galleries: list[Page] = list(gen.getCombinedGenerator(preload=True))
-# galleries = [Page(s, "Mika/gallery")]
 
 gallery_and_student: list[tuple[Page, Page]] = []
 students = []
@@ -21,15 +20,20 @@ for g in galleries:
 
 gen = PreloadingGenerator(students)
 students = list(gen)
-placeholder = "SP_PLACEHOLDER"
 
 for (s, g) in gallery_and_student:
     gallery = wtp.parse(g.text)
     student_name = s.title()
+    student_variant = None
     variants = {}
+    if "(" in student_name:
+        student_variant = re.search(r"\((.*)\)", student_name).group(1)
+        student_name = student_name[:student_name.find("(") - 1]
+        variants[f"{student_name}_({student_variant})_full.png"] = student_variant
+        variants[f"{student_name}_full.png"] = 'Original'
     for section in gallery.sections:
         search = re.search(student_name + r" \(([^\)]+)\)", section.title if section.title is not None else "")
-        if search is not None:
+        if search is not None and search.group(1) != student_variant:
             image_name = re.search(r"\n(.*\.png)\n", str(section)).group(1)
             variants[image_name] = search.group(1)
     
@@ -37,7 +41,7 @@ for (s, g) in gallery_and_student:
     t = [t for t in parsed.templates if t.name.strip().lower() == "character"]
     assert len(t) == 1
     t: Template = t[0]
-    v_index = 1
+    v_index = 1 if student_variant is None else 0
     while True:
         arg = t.get_arg("Variant" + str(v_index))
         if arg is None:
@@ -56,7 +60,11 @@ for (s, g) in gallery_and_student:
         v_index += 1
     replaced, _ = re.subn(r"(\d)=", r"\1 =", str(t))
     t.string = replaced
-    result = str(parsed).replace(placeholder, "")
-    if s.text.strip() != str(result).strip():
-        print("Error in " + student_name)
+    result = str(parsed).strip()
+    if s.text.strip() != result:
+        # print("Error in " + student_name + student_variant)
+        # break
+        setattr(s, "_bot_may_edit", True)
+        s.text = result
+        s.save("update character image variants")
         
