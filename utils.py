@@ -47,6 +47,8 @@ def dev_name_to_canonical_name(dev_name: str) -> str:
         return dev_name_map[dev_name]
     if dev_name.capitalize() in dev_name_map:
         return dev_name_map[dev_name.capitalize()]
+    if dev_name.lower() in dev_name_map:
+        return dev_name_map[dev_name.lower()]
     print("Cannot find canonical name of " + dev_name)
     return ""
 
@@ -111,8 +113,7 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[str, str, str, str
             return None
             
     # a -> A; b -> B
-    if text_ko[-1].isascii():
-        text_ko = text_ko[:-1] + text_ko[-1].upper()
+    text_ko = text_ko.upper()
     hashed = int(xxh32(text_ko).intdigest())
     if hashed not in scenario_character_name:
         raise NotImplementedError(f"Cannot find scenario character name in table. Text: {text_ko}. Hash: {hashed}.")
@@ -124,8 +125,6 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[str, str, str, str
     if spine is not None and spine.strip() != "":
         spine = spine.replace("CharacterSpine_", "")
         spine = dev_name_to_canonical_name(spine)
-        if not na:
-            spine += " " + expression_number
     portrait = row['SmallPortrait'].split("/")[-1]
     if portrait is not None and portrait != "":
         if "Student_Portrait_" in portrait:
@@ -134,11 +133,9 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[str, str, str, str
         elif "NPC_Portrait_" in portrait:
             portrait = portrait.replace("NPC_Portrait_", "")
             portrait = dev_name_to_canonical_name(portrait)
-        if not na:
-            portrait += " " + expression_number
     if na:
         spine, portrait = '', ''
-    return name, nickname, spine, portrait
+    return name, nickname, spine, portrait, expression_number
 
 
 background_file_name: dict[int, str] = {}
@@ -155,11 +152,11 @@ def get_background_file_name(background_id: int) -> str:
     return background_file_name[background_id]
 
 
-bgm_file_name: dict[int, tuple[str, list[float]]] = {}
+bgm_file_info: dict[int, tuple[str, list[float]]] = {}
 
 
-def get_bgm_file_name(query_id: int) -> tuple[str, list[float]]:
-    if len(bgm_file_name) == 0:
+def get_bgm_file_info(query_id: int) -> tuple[str, list[float]]:
+    if len(bgm_file_info) == 0:
         loaded = json.load(open("json/BGMExcelTable.json", "r", encoding="utf-8"))
         loaded = loaded['DataList']
         for row in loaded:
@@ -170,10 +167,17 @@ def get_bgm_file_name(query_id: int) -> tuple[str, list[float]]:
             volume = row['Volume']
             transition_time = row['LoopTranstionTime']
             offset_time = row['LoopOffsetTime']
-            bgm_file_name[bgm_id] = (bgm_name.split("/")[-1], [loop_start, loop_end, volume, transition_time, offset_time])
-    if query_id in bgm_file_name:
-        return bgm_file_name[query_id]
-    return f"Bgm with id {query_id} not found."
+            bgm_file_info[bgm_id] = (bgm_name.split("/")[-1], [loop_start, loop_end, volume, transition_time, offset_time])
+    if query_id in bgm_file_info:
+        return bgm_file_info[query_id]
+    raise RuntimeError(f"Bgm with id {query_id} not found.")
+
+
+def get_main_scenarios() -> list[dict]:
+    with open ("json/ScenarioModeExcelTable.json", "r", encoding="utf-8") as f:
+        result = json.load(f)
+        result = result['DataList']
+        return [row for row in result if row['ModeType'] == "Main"]
 
 
 if __name__ == "__main__":

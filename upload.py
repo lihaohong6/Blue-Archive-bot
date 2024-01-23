@@ -7,6 +7,7 @@ from pywikibot.specialbots import UploadRobot
 from pywikibot.pagegenerators import PreloadingGenerator
 
 s: APISite = pwb.Site()
+s.login()
 path = Path("./upload")
 
 def upload_images():
@@ -44,27 +45,31 @@ def upload_images():
             print(f.name, e)
 
 def upload_audio():
+    EXTENSION = "jpg"
     already_exist = set()
-    gen = (FilePage(s, "File:" + f.name) for f in path.glob("*.wav"))
+    gen = (FilePage(s, "File:" + f.name) for f in path.glob(f"*.{EXTENSION}"))
     preload = PreloadingGenerator(generator=gen)
+    exists_count = 0
     for p in preload:
         p: FilePage
         if p.exists():
+            already_exist.add(p.title(underscore=False, with_ns=False))
             already_exist.add(p.title(underscore=True, with_ns=False))
-    print(len(already_exist), " audio files already exist")
-    for f in path.glob("*.wav"):
+            exists_count += 1
+    print(exists_count, "files already exist")
+    for f in path.glob(f"*.{EXTENSION}"):
         if f.name in already_exist:
             continue
         try:
-            s.upload(FilePage(s, "File:" + f.name), source_filename=str(f), comment="Batch upload sound effects",
-                     text="[[Category:Sound effects]]")
+            s.upload(FilePage(s, "File:" + f.name), source_filename=str(f), comment="Batch upload fankit images",
+                     text="[[Category:Fankit images]]")
         except Exception as e:
             error_string = str(e)
-            search = re.search(r"duplicate of \['(.+\.wav)\'\]", error_string)
+            search = re.search(r"duplicate of \['(.+\." + EXTENSION +")\'\]", error_string)
             if search is not None:
                 p = FilePage(s, "File:" + f.name)
                 p.text = f"#REDIRECT [[File:{search.group(1)}]]"
-                p.save(summary="Redirect to existing audio file")
+                p.save(summary="Redirect to existing file")
             else:
                 print(f.name, "\n", e)
                 

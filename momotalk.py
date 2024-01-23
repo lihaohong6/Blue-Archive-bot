@@ -109,7 +109,10 @@ def make_conversation(conversation: list[dict], char_name: str,
             if c['MessageType'] == 'Image':
                 line = f"|{counter}=student-image\n|file{counter}={c['ImagePath'].split('/')[-1]}"
             else:
-                line = f"|{counter}=student-text\n|text{counter}={c['MessageEN']}"
+                message = c['MessageEN']
+                if message.strip() == "":
+                    message = "&nbsp;"
+                line = f"|{counter}=student-text\n|text{counter}={message}"
             if group_id != prev_group_id:
                 line += f"\n|name{counter}={char_name_short}\n|profile{counter}={char_name}"
             line += "\n"
