@@ -26,20 +26,32 @@ for (s, g) in gallery_and_student:
     student_name = s.title()
     student_variant = None
     variants = {}
+    variants2 = {}
     if "(" in student_name:
         student_variant = re.search(r"\((.*)\)", student_name).group(1)
         student_name = student_name[:student_name.find("(") - 1]
-        variants[f"{student_name}_({student_variant})_full.png"] = student_variant
-        variants[f"{student_name}_full.png"] = 'Original'
     for section in gallery.sections:
-        search = re.search(student_name + r" \(([^\)]+)\)", section.title if section.title is not None else "")
-        if search is not None and search.group(1) != student_variant:
-            image_name = re.search(r"\n(.*\.png)\n", str(section)).group(1)
-            variants[image_name] = search.group(1)
+        if section.title is None:
+            continue
+        search = re.search(student_name + r" \(([^\)]+)\)", section.title)
+        image_name = re.search(r"\n(.*\.png)\n", str(section))
+        if image_name is not None and image_name.group(1) is not None:
+            image_name = image_name.group(1)
+        if search is not None:
+            if search.group(1) != student_variant:
+                variants[image_name] = search.group(1)
+            else:
+                variants2[image_name] = student_variant
+        elif section.title.strip() == student_name and student_variant is not None:
+            variants2[image_name] = 'Original'
+    if student_variant is not None:
+        for k, v in variants.items():
+            variants2[k] = v
+        variants = variants2   
     
     parsed = wtp.parse(s.text)
     t = [t for t in parsed.templates if t.name.strip().lower() == "character"]
-    assert len(t) == 1
+    assert len(t) == 1, s.title()
     t: Template = t[0]
     v_index = 1 if student_variant is None else 0
     while True:
@@ -50,7 +62,7 @@ for (s, g) in gallery_and_student:
         assert arg2 is not None
         image_file = arg2.value.strip()
         variant = arg.value.strip()
-        assert image_file in variants
+        assert image_file in variants, f"{s.title()}: {image_file}\n\n" + ", ".join(variants) + "\n"
         variants.pop(image_file)
         v_index += 1
     for file_name, variant in variants.items():

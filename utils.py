@@ -8,6 +8,10 @@ from pywikibot.pagegenerators import GeneratorFactory
 import json
 
 
+def normalize_char_name(original: str) -> str:
+    return re.sub(r" ?\(.+\)", "", original)
+
+
 def get_character_table() -> dict[int, str]:
     path = Path("cache/char_id.pickle")
     if path.exists():

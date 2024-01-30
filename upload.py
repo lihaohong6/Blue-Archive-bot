@@ -6,6 +6,8 @@ from pywikibot.site import APISite
 from pywikibot.specialbots import UploadRobot
 from pywikibot.pagegenerators import PreloadingGenerator
 
+from utils import normalize_char_name
+
 s: APISite = pwb.Site()
 s.login()
 path = Path("./upload")
@@ -47,7 +49,14 @@ def upload_images():
 def upload_audio():
     EXTENSION = "jpg"
     already_exist = set()
-    gen = (FilePage(s, "File:" + f.name) for f in path.glob(f"*.{EXTENSION}"))
+    
+    def name_mapper(original: str, with_file: bool = True) -> str:
+        prefix = ""
+        if with_file:
+            prefix = "File:"
+        return prefix + "Memorial Lobby " + original
+    
+    gen = (FilePage(s, name_mapper(f.name)) for f in path.glob(f"*.{EXTENSION}"))
     preload = PreloadingGenerator(generator=gen)
     exists_count = 0
     for p in preload:
@@ -58,16 +67,16 @@ def upload_audio():
             exists_count += 1
     print(exists_count, "files already exist")
     for f in path.glob(f"*.{EXTENSION}"):
-        if f.name in already_exist:
+        if name_mapper(f.name, with_file=False) in already_exist:
             continue
         try:
-            s.upload(FilePage(s, "File:" + f.name), source_filename=str(f), comment="Batch upload fankit images",
-                     text="[[Category:Fankit images]]")
+            s.upload(FilePage(s, name_mapper(f.name)), source_filename=str(f), comment="Batch upload memorial lobby images",
+                     text=f"[[Category:Memorial lobby images]]\n[[Category:{normalize_char_name(f.name.replace('.jpg', ''))} images]]")
         except Exception as e:
             error_string = str(e)
             search = re.search(r"duplicate of \['(.+\." + EXTENSION +")\'\]", error_string)
             if search is not None:
-                p = FilePage(s, "File:" + f.name)
+                p = FilePage(s, name_mapper(f.name))
                 p.text = f"#REDIRECT [[File:{search.group(1)}]]"
                 p.save(summary="Redirect to existing file")
             else:
