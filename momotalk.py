@@ -221,9 +221,14 @@ def main():
         for char_id, momotalk in momotalk_dict.items():
             if char_id not in char_dict:
                 continue
+            try:
+                favor_schedule = get_character_favor_schedule(char_id)
+            except Exception as e:
+                print(char_id)
+                continue
             char_name = char_dict[char_id]
             char_name = char_name[0].capitalize() + char_name[1:]
-            momotalk_text = make_character_momotalk(momotalk, char_name, get_character_favor_schedule(char_id))
+            momotalk_text = make_character_momotalk(momotalk, char_name, favor_schedule)
             results.append((char_name, momotalk_text))
             out_file.write(momotalk_text)
             out_file.write("\n\n")
