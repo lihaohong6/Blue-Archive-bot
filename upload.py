@@ -47,13 +47,17 @@ def upload_images():
             print(f.name, e)
 
 def upload_audio():
-    EXTENSION = "jpg"
+    EXTENSION = "ogg"
+    COMMENT = "Batch upload sound tracks"
+    TEXT = ""
+    REDIRECT = False
     already_exist = set()
     
     def name_mapper(original: str, with_file: bool = True) -> str:
         prefix = ""
         if with_file:
             prefix = "File:"
+        return prefix + original
         return prefix + "Memorial Lobby " + original
     
     gen = (FilePage(s, name_mapper(f.name)) for f in path.glob(f"*.{EXTENSION}"))
@@ -70,9 +74,11 @@ def upload_audio():
         if name_mapper(f.name, with_file=False) in already_exist:
             continue
         try:
-            s.upload(FilePage(s, name_mapper(f.name)), source_filename=str(f), comment="Batch upload memorial lobby images",
-                     text=f"[[Category:Memorial lobby images]]\n[[Category:{normalize_char_name(f.name.replace('.jpg', ''))} images]]")
+            s.upload(FilePage(s, name_mapper(f.name)), source_filename=str(f), comment=COMMENT,
+                     text=TEXT)
         except Exception as e:
+            if not REDIRECT:
+                continue
             error_string = str(e)
             search = re.search(r"duplicate of \['(.+\." + EXTENSION +")\'\]", error_string)
             if search is not None:

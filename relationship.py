@@ -294,7 +294,7 @@ def make_all_relationship_event_pages():
                 continue
             try:
                 char_name = character_table[character_id]
-                if char_name != "Miyu (Swimsuit)":
+                if char_name != "Ayane (Swimsuit)":
                     continue
                 s = make_relationship_story_page(event_list)
                 f.write(char_name + "!!!\n\n")
@@ -307,7 +307,7 @@ def make_all_relationship_event_pages():
 
 
 def main():
-    make_main_story()
+    make_all_relationship_event_pages()
 
 
 if __name__ == "__main__":
