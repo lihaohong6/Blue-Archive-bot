@@ -9,4 +9,4 @@ password_file = "user-password.py"
 minthrottle = 0
 maxthrottle = 20
 noisysleep = 1
-put_throttle = 10
+put_throttle = 20

@@ -20,7 +20,10 @@ def data_download():
             "ScenarioBGNameExcelTable.json",
             "BGMExcelTable.json",
             "ScenarioModeExcelTable.json",
-            "LocalizeCharProfileExcelTable.json"]
+            "LocalizeCharProfileExcelTable.json",
+            "CampaignStageExcelTable.json",
+            "MissionExcelTable.json",
+            "CampaignStageRewardExcelTable.json"]
     files.extend(["ScenarioScriptFavor{}ExcelTable.json".format(i) for i in range (1, 10)])
     files.extend(["ScenarioScriptEvent{}ExcelTable.json".format(i) for i in range (1, 10)])
     files.extend(["ScenarioScriptMain{}ExcelTable.json".format(i) for i in range (1, 10)])
