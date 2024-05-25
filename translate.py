@@ -4,7 +4,7 @@ from wikitextparser import parse
 from wikitextparser._cell import Cell
 
 PREAMBLE = ("You are translating Japanese text into English. "
-            "Note that 先生 is a proper noun that should be translated to Sensei. 身共 is a first person pronoun that should be translated to I or me.")
+            "Note that 先生 is a proper noun that should be translated to Sensei.")
 
 co = cohere.Client(open("keys/cohere.txt", "r").read())  # This is your trial API key
 s = pwb.Site()
