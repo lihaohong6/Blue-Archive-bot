@@ -16,3 +16,7 @@ __pycache__
 /sprites
 /keys
 /models
+/.vscode/
+/apicache
+/env
+/venv
