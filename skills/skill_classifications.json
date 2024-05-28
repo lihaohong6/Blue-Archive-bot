@@ -1,0 +1,562 @@
+{
+  "Airi": [
+    "movement speed debuff",
+    "attack speed debuff",
+    "attack speed buff"
+  ],
+  "Airi (Band)": [
+    "explosive efficiency",
+    "critical resistance debuff"
+  ],
+  "Akane": [
+    "defense debuff",
+    "evasion debuff"
+  ],
+  "Akane (Bunny Girl)": [
+    "landmine",
+    "passive AOE damage",
+    "mystic attack buff"
+  ],
+  "Akari": [
+    "AOE damage",
+    "attack self-buff"
+  ],
+  "Akari (New Year)": [
+    "vehicle",
+    "passive AOE damage",
+    "mystic attack buff",
+    "defense buff"
+  ],
+  "Ako": [
+    "critical rate buff",
+    "critical damage buff",
+    "single-target healing"
+  ],
+  "Ako (Dress)": [
+    "critical rate buff",
+    "critical damage buff",
+    "attack self-buff",
+    "defense debuff"
+  ],
+  "Arisu": [
+    "AOE damage",
+    "critical rate self-buff"
+  ],
+  "Arisu (Maid)": [
+    "mystic single target damage",
+    "attack self-buff"
+  ],
+  "Aru": [
+    "explosive single target damage",
+    "AOE damage"
+  ],
+  "Aru (Dress)": [
+    "critical damage buff",
+    "single-target healing",
+    "critical resistance debuff"
+  ],
+  "Aru (New Year)": [
+    "single-target damage",
+    "AOE damage",
+    "passive AOE damage",
+    "cost recovery"
+  ],
+  "Asuna": [
+    "evasion self-buff",
+    "attack speed self-buff"
+  ],
+  "Asuna (Bunny Girl)": [
+    "defense debuff",
+    "AOE damage",
+    "attack speed self-buff"
+  ],
+  "Atsuko": [
+    "AOE healing",
+    "evasion buff"
+  ],
+  "Ayane": [
+    "AOE healing",
+    "critical resistance buff",
+    "HP buff"
+  ],
+  "Ayane (Swimsuit)": [
+    "vehicle",
+    "piercing single target damage",
+    "ignore defense",
+    "critical damage buff"
+  ],
+  "Azusa": [
+    "explosive single target damage",
+    "defense debuff"
+  ],
+  "Azusa (Swimsuit)": [
+    "mystic single target damage",
+    "DOT",
+    "critical damage self-buff",
+    "defense debuff"
+  ],
+  "Cherino": [
+    "AOE damage",
+    "critical damage resistance debuff",
+    "cost recovery",
+    "focused fire"
+  ],
+  "Cherino (Hot Spring)": [
+    "vehicle",
+    "AOE damage",
+    "passive AOE damage",
+    "critical damage buff"
+  ],
+  "Chihiro": [
+    "piercing single target damage",
+    "stun",
+    "attack debuff",
+    "CC buff"
+  ],
+  "Chinatsu": [
+    " single target healing",
+    "debuff removal",
+    "defense buff"
+  ],
+  "Chinatsu (Hot Spring)": [
+    "attack speed buff",
+    "self-shielding"
+  ],
+  "Chise": [
+    "AOE damage",
+    "DOT",
+    "passive AOE damage"
+  ],
+  "Chise (Swimsuit)": [
+    "AOE damage",
+    "stun",
+    "DOT"
+  ],
+  "Eimi": [
+    "self-healing",
+    "passive AOE damage",
+    "CC resistance self-buff"
+  ],
+  "Eimi (Swimsuit)": [
+    "AOE shielding",
+    "ally movement",
+    "passive attack buff",
+    "attack speed buff"
+  ],
+  "Fubuki": [
+    "attack self-buff",
+    "stun"
+  ],
+  "Fuuka": [
+    "AOE healing",
+    "ally movement",
+    "defense buff",
+    "critical resistance buff"
+  ],
+  "Fuuka (New Year)": [
+    "cost reduction",
+    "critical damage buff",
+    "single target healing",
+    "passive attack buff"
+  ],
+  "Hanae": [
+    "single target healing",
+    "defense buff",
+    "critical damage buff"
+  ],
+  "Hanae (Christmas)": [
+    "AOE healing",
+    "critical damage buff"
+  ],
+  "Hanako": [
+    "AOE healing",
+    "defense buff",
+    "healing buff"
+  ],
+  "Hanako (Swimsuit)": [
+    "AOE damage",
+    "defense debuff",
+    "attack self-buff"
+  ],
+  "Hare": [
+    "stun",
+    "AOE damage",
+    "evasion buff",
+    "recovery debuff"
+  ],
+  "Hare (Camping)": [
+    "attack buff",
+    "attack self-buff"
+  ],
+  "Haruka": [
+    "AOE damage",
+    "defense self-buff"
+  ],
+  "Haruka (New Year)": [
+    "critical resistance debuff",
+    "critical damage resistance debuff",
+    "cost recovery"
+  ],
+  "Haruna": [
+    "mystic single target damage",
+    "mystic AOE damage",
+    "attack self-buff"
+  ],
+  "Haruna (New Year)": [
+    "explosive AOE damage",
+    "attack self-buff",
+    "defense debuff"
+  ],
+  "Haruna (Sportswear)": [
+    "AOE healing",
+    "ally movement",
+    "defense debuff",
+    "passive sonic AOE damage",
+    "passive attack buff"
+  ],
+  "Hasumi": [
+    "single-target piercing damage",
+    "critical damage self-buff",
+    "critical rate self-buff"
+  ],
+  "Hasumi (Sportswear)": [
+    "single-target mystic damage",
+    "large enemy bonus damage"
+  ],
+  "Hatsune Miku": [
+    "AOE healing",
+    "attack buff",
+    "critical rate buff",
+    "healing buff"
+  ],
+  "Hibiki": [
+    "explosive AOE damage",
+    "passive explosive AOE damage",
+    "critical damage buff"
+  ],
+  "Hibiki (Cheerleader)": [
+    "explosive AOE damage",
+    "explosive DOT",
+    "passive attack buff",
+    "attack self-buff"
+  ],
+  "Hifumi": [
+    "piercing AOE damage",
+    "taunt",
+    "accuracy debuff",
+    "cost recovery"
+  ],
+  "Hifumi (Swimsuit)": [
+    "vehicle",
+    "passive piercing AOE damage",
+    "attack speed buff"
+  ],
+  "Himari": [
+    "attack buff",
+    "evasion debuff",
+    "cost recovery"
+  ],
+  "Hina": [
+    "explosive AOE damage",
+    "attack self-buff"
+  ],
+  "Hina (Dress)": [
+    "explosive AOE damage",
+    "explosive single target damage",
+    "attack self-buff",
+    "accuracy self-buff",
+    "CC immunity"
+  ],
+  "Hina (Swimsuit)": [
+    "explosive AOE damage",
+    "stun",
+    "attack self-buff"
+  ],
+  "Hinata": [
+    "mystic AOE damage",
+    "medium enemy bonus damage"
+  ],
+  "Hinata (Swimsuit)": [
+    "explosive AOE damage",
+    "ignore defense",
+    "passive attack buff"
+  ],
+  "Hiyori": [
+    "explosive AOE damage",
+    "defense debuff",
+    "passive attack buff"
+  ],
+  "Hoshino": [
+    "piercing AOE damage",
+    "stun",
+    "self-healing",
+    "self-shielding"
+  ],
+  "Hoshino (Swimsuit)": [
+    "attack buff",
+    "explosive attack buff",
+    "self-healing",
+    "cost recovery"
+  ],
+  "Ibuki": [
+    "attack buff",
+    "mystic AOE damage",
+    "attack debuff",
+    "self-healing"
+  ],
+  "Ichika": [
+    "sonic AOE damage",
+    "damage self-buff"
+  ],
+  "Iori": [
+    "piercing single target damage",
+    "piercing AOE damage",
+    "damage self-buff"
+  ],
+  "Iori (Swimsuit)": [
+    "explosive AOE damage",
+    "explosive DOT"
+  ],
+  "Iroha": [
+    "vehicle",
+    "mystic AOE damage",
+    "passive attack buff"
+  ],
+  "Izumi": [
+    "self-healing",
+    "attack speed self-buff"
+  ],
+  "Izumi (Swimsuit)": [
+    "explosive AOE damage",
+    "stun",
+    "attack self-buff"
+  ],
+  "Izuna": [
+    "self movement",
+    "attack speed buff",
+    "passive mystic AOE damage",
+    "attack self-buff"
+  ],
+  "Izuna (Swimsuit)": [
+    "focused fire",
+    "mystic single target damage",
+    "critical damage resistance debuff",
+    "attack speed self-buff"
+  ],
+  "Junko": [
+    "piercing AOE damage",
+    "immortality"
+  ],
+  "Junko (New Year)": [
+    "mystic AOE damage",
+    "critical rate self-buff"
+  ],
+  "Juri": [
+    "enemy movement",
+    "explosive DOT",
+    "attack speed debuff",
+    "HP buff"
+  ],
+  "Kaede": [
+    "AOE shielding",
+    "defense buff",
+    "HP buff"
+  ],
+  "Kaho": [
+    "mystic single target damage",
+    "attack self-buff"
+  ],
+  "Kanna": [
+    "piercing single target damage",
+    "defense debuff",
+    "piercing attack buff"
+  ],
+  "Karin": [
+    "piercing single target damage",
+    "large enemy bonus damage",
+    "stun",
+    "passive attack buff"
+  ],
+  "Karin (Bunny Girl)": [
+    "mystic AOE damage",
+    "ignore defense",
+    "passive mystic AOE damage",
+    "critical rate self-buff"
+  ],
+  "Kasumi": [
+    "defense debuff",
+    "sonic AOE damage",
+    "passive sonic AOE damage"
+  ],
+  "Kayoko": [
+    "CC",
+    "explosive AOE damage"
+  ],
+  "Kayoko (Dress)": [
+    "piercing single target damage",
+    "ignore defense",
+    "guaranteed critical",
+    "critical damage self-buff"
+  ],
+  "Kayoko (New Year)": [
+    "mystic attack buff",
+    "critical rate buff",
+    "attack self-buff"
+  ],
+  "Kazusa": [
+    "piercing single target damage",
+    "attack self-buff"
+  ],
+  "Kazusa (Band)": [
+    "attack speed buff",
+    "attack self-buff",
+    "passive attack buff"
+  ],
+  "Kikyou": [
+    "defense debuff",
+    "sonic AOE damage",
+    "sonic attack buff",
+    "attack self-buff",
+    "cost reduction"
+  ],
+  "Kirara": [
+    "attack self-buff",
+    "accuracy self-buff"
+  ],
+  "Kirino": [
+    "piercing AOE damage",
+    "accuracy debuff",
+    "recovery debuff"
+  ],
+  "Koharu": [
+    "AOE healing",
+    "explosive AOE damage",
+    "single target healing",
+    "healing self-buff"
+  ],
+  "Koharu (Swimsuit)": [
+    "mystic AOE damage",
+    "critical rate self-buff",
+    "medium enemy bonus damage"
+  ],
+  "Kokona": [
+    "single target healing",
+    "cost reduction"
+  ],
+  "Kotama": [
+    "attack buff",
+    "attack debuff",
+    "passive attack buff"
+  ],
+  "Kotama (Camping)": [
+    "CC",
+    "single target damage",
+    "passive attack buff",
+    "attack self-buff"
+  ],
+  "Kotori": [
+    "ally movement",
+    "AOE shielding",
+    "passive piercing AOE damage",
+    "critical damage self-buff"
+  ],
+  "Kotori (Cheerleader)": [
+    "explosive AOE damage",
+    "critical rate buff",
+    "attack self-buff"
+  ],
+  "Koyuki": [
+    "mystic AOE damage",
+    "attack self-buff"
+  ],
+  "Maki": [],
+  "Makoto": [],
+  "Mari": [],
+  "Mari (Sportswear)": [],
+  "Marina": [],
+  "Mashiro": [],
+  "Mashiro (Swimsuit)": [],
+  "Megu": [],
+  "Meru": [],
+  "Michiru": [],
+  "Midori": [],
+  "Midori (Maid)": [],
+  "Mika": [],
+  "Mimori": [],
+  "Mimori (Swimsuit)": [],
+  "Mina": [],
+  "Mine": [],
+  "Minori": [],
+  "Misaka Mikoto": [],
+  "Misaki": [],
+  "Miyako": [],
+  "Miyako (Swimsuit)": [],
+  "Miyu": [],
+  "Miyu (Swimsuit)": [],
+  "Moe": [],
+  "Momiji": [],
+  "Momoi": [],
+  "Momoi (Maid)": [],
+  "Mutsuki": [],
+  "Mutsuki (New Year)": [],
+  "Nagisa": [],
+  "Natsu": [],
+  "Neru": [],
+  "Neru (Bunny Girl)": [],
+  "Noa": [],
+  "Nodoka": [],
+  "Nodoka (Hot Spring)": [],
+  "Nonomi": [],
+  "Nonomi (Swimsuit)": [],
+  "Pina": [],
+  "Reisa": [],
+  "Renge": [],
+  "Rumi": [],
+  "Saki": [],
+  "Saki (Swimsuit)": [],
+  "Sakurako": [],
+  "Saori": [],
+  "Saten Ruiko": [],
+  "Saya": [],
+  "Saya (Casual)": [],
+  "Sena": [],
+  "Serika": [],
+  "Serika (New Year)": [],
+  "Serina": [],
+  "Serina (Christmas)": [],
+  "Shigure": [],
+  "Shigure (Hot Spring)": [],
+  "Shimiko": [],
+  "Shiroko": [],
+  "Shiroko (Riding)": [],
+  "Shiroko (Swimsuit)": [],
+  "Shizuko": [],
+  "Shizuko (Swimsuit)": [],
+  "Shokuhou Misaki": [],
+  "Shun": [],
+  "Shun (Kid)": [],
+  "Sumire": [],
+  "Suzumi": [],
+  "Toki": [],
+  "Toki (Bunny Girl)": [],
+  "Tomoe": [],
+  "Tsubaki": [],
+  "Tsubaki (Guide)": [],
+  "Tsukuyo": [],
+  "Tsurugi": [],
+  "Tsurugi (Swimsuit)": [],
+  "Ui": [],
+  "Ui (Swimsuit)": [],
+  "Umika": [],
+  "Utaha": [],
+  "Utaha (Cheerleader)": [],
+  "Wakamo": [],
+  "Wakamo (Swimsuit)": [],
+  "Yoshimi": [],
+  "Yoshimi (Band)": [],
+  "Yukari": [],
+  "Yuuka": [],
+  "Yuuka (Sportswear)": [],
+  "Yuzu": [],
+  "Yuzu (Maid)": []
+}
