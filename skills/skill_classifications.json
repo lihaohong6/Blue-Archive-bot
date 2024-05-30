@@ -469,37 +469,181 @@
     "mystic AOE damage",
     "attack self-buff"
   ],
-  "Maki": [],
-  "Makoto": [],
-  "Mari": [],
-  "Mari (Sportswear)": [],
-  "Marina": [],
-  "Mashiro": [],
-  "Mashiro (Swimsuit)": [],
-  "Megu": [],
-  "Meru": [],
-  "Michiru": [],
-  "Midori": [],
-  "Midori (Maid)": [],
-  "Mika": [],
-  "Mimori": [],
-  "Mimori (Swimsuit)": [],
-  "Mina": [],
-  "Mine": [],
-  "Minori": [],
-  "Misaka Mikoto": [],
-  "Misaki": [],
-  "Miyako": [],
-  "Miyako (Swimsuit)": [],
-  "Miyu": [],
-  "Miyu (Swimsuit)": [],
-  "Moe": [],
-  "Momiji": [],
-  "Momoi": [],
-  "Momoi (Maid)": [],
-  "Mutsuki": [],
-  "Mutsuki (New Year)": [],
-  "Nagisa": [],
+  "Maki": [
+    "piercing single target damage",
+    "attack self-buff",
+    "defense debuff"
+  ],
+  "Makoto": [
+    "piercing AOE damage",
+    "defense debuff",
+    "piercing attack buff"
+  ],
+  "Mari": [
+    "single target shielding",
+    "debuff removal",
+    "passive mystic AOE damage",
+    "HP buff"
+  ],
+  "Mari (Sportswear)": [
+    "AOE healing",
+    "self-healing",
+    "defense buff",
+    "single target healing"
+  ],
+  "Marina": [
+    "piercing AOE damage",
+    "recovery debuff",
+    "immortality",
+    "evasion self-buff"
+  ],
+  "Mashiro": [
+    "explosive single target damage",
+    "passive explosive single target damage",
+    "accuracy buff"
+  ],
+  "Mashiro (Swimsuit)": [
+    "mystic single target damage",
+    "evasion debuff",
+    "critical damage buff",
+    "accuracy buff"
+  ],
+  "Megu": [
+    "explosive AOE damage",
+    "attack self-buff",
+    "passive explosive AOE damage",
+    "DOT",
+    "self-healing"
+  ],
+  "Meru": [
+    "piercing single target damage",
+    "DOT"
+  ],
+  "Michiru": [
+    "mystic single target damage",
+    "DOT",
+    "attack self-buff",
+    "critical damage self-buff"
+  ],
+  "Midori": [
+    "piercing AOE damage",
+    "piercing single target damage",
+    "DOT",
+    "single target healing",
+    "attack speed self-buff"
+  ],
+  "Midori (Maid)": [
+    "sonic single target damage",
+    "attack self-buff",
+    "critical rate self-buff"
+  ],
+  "Mika": [
+    "piercing single target damage",
+    "guaranteed critical"
+  ],
+  "Mimori": [
+    "attack speed buff",
+    "ally movement",
+    "single target healing",
+    "defense buff"
+  ],
+  "Mimori (Swimsuit)": [
+    "cover summoning",
+    "attack speed buff",
+    "single target shielding"
+  ],
+  "Mina": [
+    "explosive single target damage",
+    "attack debuff",
+    "evasion debuff",
+    "accuracy debuff",
+    "attack self-buff",
+    "evasion self-buff",
+    "accuracy self-buff"
+  ],
+  "Mine": [
+    "explosive AOE damage",
+    "self movement",
+    "enemy movement",
+    "evasion debuff",
+    "defense debuff",
+    "passive explosive AOE damage",
+    "self-healing"
+  ],
+  "Minori": [
+    "explosive AOE damage",
+    "passive explosive AOE damage",
+    "explosive attack buff"
+  ],
+  "Misaka Mikoto": [
+    "piercing AOE damage",
+    "passive piercing AOE damage",
+    "DOT",
+    "attack self-buff"
+  ],
+  "Misaki": [
+    "explosive AOE damage",
+    "DOT",
+    "attack self-buff"
+  ],
+  "Miyako": [
+    "piercing single target damage",
+    "stun",
+    "passive piercing AOE damage",
+    "defense self-buff"
+  ],
+  "Miyako (Swimsuit)": [
+    "critical damage resistance debuff",
+    "explosive single target damage",
+    "evasion self-buff",
+    "cost recovery"
+  ],
+  "Miyu": [
+    "damage buff",
+    "critical damage self-buff"
+  ],
+  "Miyu (Swimsuit)": [
+    "explosive AOE damage",
+    "passive explosive AOE damage",
+    "critical damage buff"
+  ],
+  "Moe": [
+    "piercing AOE damage",
+    "piercing DOT",
+    "stun",
+    "attack buff"
+  ],
+  "Momiji": [
+    "sonic AOE damage",
+    "attack self-buff"
+  ],
+  "Momoi": [
+    "piercing AOE damage",
+    "piercing DOT",
+    "accuracy self-buff",
+    "attack self-buff"
+  ],
+  "Momoi (Maid)": [
+    "attack speed self-buff",
+    "attack self-buff",
+    "sonic single target damage"
+  ],
+  "Mutsuki": [
+    "explosive AOE damage",
+    "landmine",
+    "accuracy self-buff"
+  ],
+  "Mutsuki (New Year)": [
+    "mystic AOE damage",
+    "passive mystic AOE damage",
+    "critical damage self-buff"
+  ],
+  "Nagisa": [
+    "explosive AOE damage",
+    "defense debuff",
+    "single target healing",
+    "critical damage buff"
+  ],
   "Natsu": [],
   "Neru": [],
   "Neru (Bunny Girl)": [],
