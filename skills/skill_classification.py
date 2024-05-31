@@ -19,9 +19,9 @@ def pull():
         page: pwb.Page
         text = page.text
         classifications = []
-        skill_types = re.search(r"\{\{skill types\|([a-zA-Z |-]+)}}", text, re.IGNORECASE)
+        skill_types = re.search(r"\{\{ *skill types *\|([a-zA-Z |-]+)}}", text, re.IGNORECASE)
         if skill_types is not None:
-            classifications = skill_types.group(1).split("|")
+            classifications = [skill_type.strip() for skill_type in skill_types.group(1).split("|")]
         result[page.title()] = classifications
     json.dump(result, open(skill_file, "w"), indent=2)
 
