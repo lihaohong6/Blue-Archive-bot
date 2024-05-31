@@ -82,7 +82,8 @@ movement
  enemy movement
 shielding
  self-shielding
- AOE shiedling
+ AOE shielding
+ single target shielding
 focused fire
 cost recovery
 cost reduction

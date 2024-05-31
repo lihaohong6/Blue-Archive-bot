@@ -56,7 +56,7 @@
     "critical resistance debuff"
   ],
   "Aru (New Year)": [
-    "single-target damage",
+    "piercing single target damage",
     "piercing AOE damage",
     "passive AOE damage",
     "cost recovery"
@@ -433,7 +433,7 @@
     "AOE healing",
     "explosive AOE damage",
     "single target healing",
-    "healing self-buff"
+    "healing buff"
   ],
   "Koharu (Swimsuit)": [
     "mystic AOE damage",
