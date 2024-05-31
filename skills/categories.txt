@@ -1,11 +1,23 @@
 object summoning
  vehicle
  cover summoning
-landmine
+ landmine
 damage
  AOE damage
   passive AOE damage
+   passive explosive AOE damage
+   passive piercing AOE damage
+   passive mystic AOE damage
+   passive sonic AOE damage
+  explosive AOE damage
+  piercing AOE damage
+  mystic AOE damage
+  sonic AOE damage
  single target damage
+  explosive single target damage
+  piercing single target damage
+  mystic single target damage
+  sonic single target damage
  DOT
   explosive DOT
   piercing DOT

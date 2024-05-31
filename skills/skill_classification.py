@@ -37,7 +37,7 @@ def push():
         types = result[title]
         text = page.text
         type_string = "{{skill types | " + " | ".join(types) + " }}"
-        text, substitutions = re.subn(r"\{\{skill types\|[a-zA-Z- |]+}}", type_string, text, flags=re.IGNORECASE)
+        text, substitutions = re.subn(r"\{\{skill types *\|[a-zA-Z- |]+}}", type_string, text, flags=re.IGNORECASE)
         assert substitutions < 2
         if substitutions == 0:
             text, substitutions = re.subn(r"^(=+ *Skills *=+)$", r"\1\n" + type_string, text, flags=re.MULTILINE)
@@ -69,8 +69,10 @@ def make_categories():
         text = text + f"[[Category:{parents[-1]}]]"
         page = pwb.Page(s, title)
         setattr(page, "_bot_may_edit", True)
+        if page.text.strip() == text.strip():
+            continue
         page.text = text
-        page.save(summary="Mass create skill-related categories")
+        page.save(summary="Mass update skill-related categories")
 
 
 def main():
