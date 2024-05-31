@@ -7,7 +7,7 @@ import pywikibot as pwb
 from pywikibot.pagegenerators import GeneratorFactory
 
 s = pwb.Site()
-skill_file = Path("skill_classifications.json")
+skill_file = Path("skills/skill_classifications.json")
 f = GeneratorFactory(s)
 f.handle_args(['-cat:Characters', '-ns:0'])
 gen = f.getCombinedGenerator(preload=True)
@@ -50,12 +50,37 @@ def push():
         page.save(summary="update skill types", minor=False)
 
 
+def make_categories():
+    def make_title(t: str) -> str:
+        return f"Characters with {t} skills"
+
+    lines = open("skills/categories.txt", "r").readlines()
+    skill_stack = ["" for _ in range(10)]
+    for line in lines:
+        line = line.rstrip()
+        spacing = len(line) - len(line.lstrip())
+        line = make_title(line.lstrip())
+        skill_stack[spacing] = line
+        parents = ["Characters by skill"]
+        for i in range(0, spacing):
+            parents.append(skill_stack[i])
+        title = "Category:" + line
+        text = "{{catnav|" + "|".join(parents) + f"|{line}" + "}}\n\n"
+        text = text + f"[[Category:{parents[-1]}]]"
+        page = pwb.Page(s, title)
+        setattr(page, "_bot_may_edit", True)
+        page.text = text
+        page.save(summary="Mass create skill-related categories")
+
+
 def main():
     from sys import argv
     if argv[1] == "push":
         push()
     elif argv[1] == "pull":
         pull()
+    elif argv[1] == "cat":
+        make_categories()
 
 
 if __name__ == "__main__":

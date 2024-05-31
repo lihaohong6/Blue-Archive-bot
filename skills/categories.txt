@@ -1,0 +1,83 @@
+object summoning
+ vehicle
+ cover summoning
+landmine
+damage
+ AOE damage
+  passive AOE damage
+ single target damage
+ DOT
+  explosive DOT
+  piercing DOT
+  mystic DOT
+  sonic DOT
+ ignore defense
+buff
+ damage buff
+  shield damage buff
+ attack buff
+  explosive attack buff
+  piercing attack buff
+  mystic attack buff
+  special attack buff
+  attack self-buff
+  passive attack buff
+ defense buff
+  defense self-buff
+ accuracy buff
+  accuracy self-buff
+ evasion buff
+  evasion self-buff
+ attack speed buff
+  attack speed self-buff
+ critical rate buff
+  critical rate self-buff
+ critical damage buff
+  passive critical damage buff
+  critical damage self-buff
+ movement speed buff
+  movement speed self-buff
+ CC buff
+ CC resistance buff
+  CC resistance self-buff
+ HP buff
+ healing buff
+debuff
+ attack debuff
+ defense debuff
+ accuracy debuff
+ evasion debuff
+ attack speed debuff
+ critical rate debuff
+ critical damage debuff
+ critical resistance debuff
+ critical damage resistance debuff
+ movement speed debuff
+ recovery buff
+ recovery debuff
+guaranteed critical
+CC
+ taunt
+ stun
+CC immunity
+healing
+ self-healing
+ single target healing
+ AOE healing
+movement
+ self movement
+ ally movement
+ enemy movement
+shielding
+ self-shielding
+ AOE shiedling
+focused fire
+cost recovery
+cost reduction
+debuff removal
+enemy-dependent bonus damage
+ small enemy bonus damage
+ medium enemy bonus damage
+ large enemy bonus damage
+ boss bonus damage
+immortality
