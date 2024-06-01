@@ -75,14 +75,27 @@ def make_categories():
         page.save(summary="Mass update skill-related categories")
 
 
+def stat():
+    skill_types: dict[str, list[str]] = json.load(open(skill_file, "r"))
+    chars = [[] for _ in range(100)]
+    for name, types in skill_types.items():
+        def skill_filter(skill: str) -> bool:
+            return "debuff" in skill
+
+        types = [t for t in types if skill_filter(t)]
+        chars[len(types)].append(name)
+    print(chars)
+
+
 def main():
     from sys import argv
-    if argv[1] == "push":
-        push()
-    elif argv[1] == "pull":
-        pull()
-    elif argv[1] == "cat":
-        make_categories()
+    funcs = {
+        "push": push,
+        "pull": pull,
+        "cat": make_categories,
+        "stat": stat
+    }
+    funcs[argv[1]]()
 
 
 if __name__ == "__main__":
