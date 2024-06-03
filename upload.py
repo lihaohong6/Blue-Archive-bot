@@ -13,7 +13,7 @@ s.login()
 path = Path("./upload")
 
 def upload_images():
-    image_path = Path(r"D:\BA\MediaResources\UIs\03_Scenario\01_Background")
+    image_path = Path(r"./upload")
     
     def glob() -> list[Path]:
         def name_filter(f: str) -> bool:
@@ -88,7 +88,7 @@ def upload_audio():
             else:
                 print(f.name, "\n", e)
                 
-upload_audio()
+upload_images()
 
 def rename_files():
     for f in p.glob("*.png"):
