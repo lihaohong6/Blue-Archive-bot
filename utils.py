@@ -92,8 +92,10 @@ def load_favor_schedule() -> dict[int, list[dict]]:
 scenario_character_name: dict[int, dict] = {}
 
 
-def get_scenario_character_id(text_ko_original: str) -> tuple[str, str, str, str] | None:
+def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, str, str, str]], int]:
     from xxhash import xxh32
+    result = []
+    speaker = -1
     if len(scenario_character_name) == 0:
         path = Path("json/ScenarioCharacterNameExcelTable.json")
         loaded = json.load(open(path, "r", encoding="utf-8"))
@@ -102,44 +104,54 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[str, str, str, str
             cid = row['CharacterName']
             scenario_character_name[cid] = row
     # search_text = re.search(r"^\d+;([^;a-zA-Z]+) ?([a-zA-Z]+)?;\d+;?", text_ko)
-    search_text = re.search(r"^\d+;([^;]+);(\d+);?", text_ko_original)
-    if search_text is not None:
-        text_ko = search_text.group(1)
-        expression_number = search_text.group(2)
-        na = False
-    else:
-        search_text = re.search(r"#na;([^\n#;]+);", text_ko_original)
-        na = True
+    for original in text_ko_original.split("\n"):
+        search_text = re.search(r"^\d+;([^;]+);(\d+);?", original)
         if search_text is not None:
-            text_ko = search_text.group(1)
-            expression_number = None
+            name_ko = search_text.group(1)
+            expression_number = search_text.group(2)
+            na = False
         else:
-            return None
-            
-    # a -> A; b -> B
-    text_ko = text_ko.upper()
-    hashed = int(xxh32(text_ko).intdigest())
-    if hashed not in scenario_character_name:
-        raise NotImplementedError(f"Cannot find scenario character name in table. Text: {text_ko}. Hash: {hashed}.")
-        return None
-    row = scenario_character_name[hashed]
-    name = row['NameEN']
-    nickname = row['NicknameEN']
-    spine = row['SpinePrefabName'].split("/")[-1]
-    if spine is not None and spine.strip() != "":
-        spine = spine.replace("CharacterSpine_", "")
-        spine = dev_name_to_canonical_name(spine)
-    portrait = row['SmallPortrait'].split("/")[-1]
-    if portrait is not None and portrait != "":
-        if "Student_Portrait_" in portrait:
-            portrait = portrait.replace("Student_Portrait_", "")
-            portrait = dev_name_to_canonical_name(portrait)
-        elif "NPC_Portrait_" in portrait:
-            portrait = portrait.replace("NPC_Portrait_", "")
-            portrait = dev_name_to_canonical_name(portrait)
-    if na:
-        spine, portrait = '', ''
-    return name, nickname, spine, portrait, expression_number
+            search_text = re.search(r"#na;([^\n#;]+)(;.+)?", original)
+            if search_text is not None:
+                na = True
+                if search_text.group(2) is not None:
+                    name_ko = search_text.group(1)
+                else:
+                    result.append([None, None, None, None, None])
+                    continue
+                expression_number = None
+            else:
+                continue
+                
+        # a -> A; b -> B
+        name_ko = name_ko.upper()
+        hashed = int(xxh32(name_ko).intdigest())
+        if hashed not in scenario_character_name:
+            raise NotImplementedError(f"Cannot find scenario character name in table. Text: {name_ko}. Hash: {hashed}.")
+            continue
+        row = scenario_character_name[hashed]
+        name = row['NameEN']
+        nickname = row['NicknameEN']
+        spine = row['SpinePrefabName'].split("/")[-1]
+        if spine is not None and spine.strip() != "":
+            spine = spine.replace("CharacterSpine_", "")
+            spine = dev_name_to_canonical_name(spine)
+        portrait = row['SmallPortrait'].split("/")[-1]
+        if portrait is not None and portrait != "":
+            if "Student_Portrait_" in portrait:
+                portrait = portrait.replace("Student_Portrait_", "")
+                portrait = dev_name_to_canonical_name(portrait)
+            elif "NPC_Portrait_" in portrait:
+                portrait = portrait.replace("NPC_Portrait_", "")
+                portrait = dev_name_to_canonical_name(portrait)
+        if na:
+            spine, portrait = '', ''
+        
+        # check if there is text after the last semicolon; if so, this is the speaker
+        if re.search(r"^\d+;([^;]+);(\d+);.", original) is not None or na:
+            speaker = len(result)
+        result.append((name, nickname, spine, portrait, expression_number))
+    return result, speaker
 
 
 background_file_name: dict[int, str] = {}
@@ -160,17 +172,22 @@ bgm_file_info: dict[int, tuple[str, list[float]]] = {}
 
 
 def get_bgm_file_info(query_id: int) -> tuple[str, list[float]]:
+    def list_or_none(l: list) -> str | None:
+        if len(l) == 0:
+            return None
+        return l[0]
+    
     if len(bgm_file_info) == 0:
         loaded = json.load(open("json/BGMExcelTable.json", "r", encoding="utf-8"))
         loaded = loaded['DataList']
         for row in loaded:
             bgm_id = row['Id']
-            bgm_name: str = row['Path']
-            loop_start = row['LoopStartTime']
-            loop_end = row['LoopEndTime']
-            volume = row['Volume']
-            transition_time = row['LoopTranstionTime']
-            offset_time = row['LoopOffsetTime']
+            bgm_name: str = list_or_none(row['Path'])
+            loop_start = list_or_none(row['LoopStartTime'])
+            loop_end = list_or_none(row['LoopEndTime'])
+            volume = list_or_none(row['Volume'])
+            transition_time = list_or_none(row['LoopTranstionTime'])
+            offset_time = list_or_none(row['LoopOffsetTime'])
             bgm_file_info[bgm_id] = (bgm_name.split("/")[-1], [loop_start, loop_end, volume, transition_time, offset_time])
     if query_id in bgm_file_info:
         return bgm_file_info[query_id]

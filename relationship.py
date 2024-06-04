@@ -110,6 +110,7 @@ def make_story(lines: list[dict]) -> str:
     result = ["{{Story"]
     counter = 0
     hanging_bgm = False
+    current_background = None
     for line in lines:
         bgm_id = line['BGMId']
         # sometimes bgm stop is issued at the start; need to avoid that
@@ -124,22 +125,27 @@ def make_story(lines: list[dict]) -> str:
                 bgm_name = file_name.replace("_", " ")
                 
                 loop_string = f"\n|loop-start{counter}={bgm_loop_start}\n|loop-end{counter}={bgm_loop_end}" \
-                              if bgm_loop_start != 0 or bgm_loop_end != 0 \
+                              if bgm_loop_start is not None or bgm_loop_end is not None \
                               else ""
                 
                 result.append(f"|{counter}=bgm\n|bgm{counter}={file_name}\n|name{counter}={bgm_name}\n"
                               f"|volume{counter}={bgm_volume}{loop_string}")
                 hanging_bgm = True
-                
+        
+        # parse background
         if line['BGName'] != 0:
             file_name = get_background_file_name(line['BGName'])
-            counter += 1
-            result.append(f"|{counter}=background\n|background{counter}={file_name}")
+            # in some places (e.g. L2D) the same file name gets repeated multiple times
+            if current_background != file_name:
+                counter += 1
+                result.append(f"|{counter}=background\n|background{counter}={file_name}")
+                current_background = file_name
         
         script: str = line['ScriptKr']
         lower: str = script.lower()
         text: str = line['TextEn']
-        text = text + "".join(extract_em(script))
+        # don't deal with emoticon for now
+        # text = text + "".join(extract_em(script))
         text = text.replace("#n", "<br/>")
         sound: str = line['Sound']
         selection_group: int = line['SelectionGroup']
@@ -192,7 +198,7 @@ def make_story(lines: list[dict]) -> str:
             if match is not None:
                 log = match.group(1)
                 lower = f"3;{log};00"
-        character_query_result = get_scenario_character_id(lower)
+        character_query_result, speaker_index = get_scenario_character_id(lower)
         
         if sound is not None and sound != "":
             counter += 1
@@ -209,7 +215,7 @@ def make_story(lines: list[dict]) -> str:
         elif lower.startswith("#na;("):
             counter += 1
             result.append(f"|{counter}=info\n|text{counter}={text}")
-        elif lower.startswith("#na;") and character_query_result is None:
+        elif lower.startswith("#na;") and len(character_query_result) == 0:
             counter += 1
             result.append(f"|{counter}=no-speaker\n|text{counter}={text}")
         elif lower.startswith("[s") or lower.startswith("[ns"):
@@ -229,12 +235,14 @@ def make_story(lines: list[dict]) -> str:
                 result_line += "\n".join(f"|option{counter}_{index}={o}" for index, o in enumerate(options, 1))
                 result_line += f"\n|group{counter}={option_group}"
                 result.append(result_line)
-        elif character_query_result is not None:
+        elif len(character_query_result) > 0:
             # student line
             if is_st_line:
                 text = strip_st_line(text)
             if text.strip() != "":
-                name, nickname, spine, portrait, sequence = character_query_result
+                if speaker_index == -1:
+                    print(f"Line with no speaker: {script}")
+                name, nickname, spine, portrait, sequence = character_query_result[speaker_index]
                 counter += 1
                 if portrait == "" and spine == "":
                     portrait_string = ""
@@ -243,8 +251,11 @@ def make_story(lines: list[dict]) -> str:
                 result.append(f"|{counter}=student-text\n|name{counter}={name}\n"
                               f"|affiliation{counter}={nickname}\n"
                               f"|text{counter}={text}{group_and_option_string}{portrait_string}")
+        elif text != "":
+            counter += 1
+            result.append(f"|{counter}=info\n|text{counter}={text}")
         else:
-            print("Unrecognizable line: " + script + "\nProcessed: " + lower)
+            print(f"Unrecognizable line: {script}. Processed: {lower}.")
             
     if hanging_bgm:
         counter += 1
@@ -307,7 +318,7 @@ def make_all_relationship_event_pages():
 
 
 def main():
-    make_all_relationship_event_pages()
+    make_main_story()
 
 
 if __name__ == "__main__":
