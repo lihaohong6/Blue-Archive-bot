@@ -111,6 +111,7 @@ def make_story(lines: list[dict]) -> str:
     counter = 0
     hanging_bgm = False
     current_background = None
+    onscreen_characters = set()
     for line in lines:
         bgm_id = line['BGMId']
         # sometimes bgm stop is issued at the start; need to avoid that
@@ -198,7 +199,7 @@ def make_story(lines: list[dict]) -> str:
             if match is not None:
                 log = match.group(1)
                 lower = f"3;{log};00"
-        character_query_result, speaker_index = get_scenario_character_id(lower)
+        character_query_result, speaker = get_scenario_character_id(lower)
         
         if sound is not None and sound != "":
             counter += 1
@@ -215,6 +216,7 @@ def make_story(lines: list[dict]) -> str:
         elif lower.startswith("#na;("):
             counter += 1
             result.append(f"|{counter}=info\n|text{counter}={text}")
+            # TODO: deal with na issues
         elif lower.startswith("#na;") and len(character_query_result) == 0:
             counter += 1
             result.append(f"|{counter}=no-speaker\n|text{counter}={text}")
@@ -239,10 +241,17 @@ def make_story(lines: list[dict]) -> str:
             # student line
             if is_st_line:
                 text = strip_st_line(text)
+            characters = set("".join(s for s in r if s is not None) for r in character_query_result)
+            if characters != onscreen_characters and len(character_query_result) > 1:
+                onscreen_characters = characters
+                counter += 1
+                params = "|".join(f"char{index}={r[2]}|sequence{index}={r[4]}" for index, r in enumerate(character_query_result))
+                result.append(f"|{counter}=screen\n"
+                              f"|content{counter}={{{{Story/Row|{params}}}}}")
             if text.strip() != "":
-                if speaker_index == -1:
+                if speaker is None:
                     print(f"Line with no speaker: {script}")
-                name, nickname, spine, portrait, sequence = character_query_result[speaker_index]
+                name, nickname, spine, portrait, sequence = speaker
                 counter += 1
                 if portrait == "" and spine == "":
                     portrait_string = ""
@@ -275,7 +284,7 @@ def make_relationship_story_page(event_list: list[dict]) -> str:
         localization_id = event["LocalizeScenarioId"]
         event_name, event_summary = get_localization(localization_id)
         lines = get_favor_event(event['ScenarioSriptGroupId'])
-        result.append(f"={event_name}=\n{make_nav_span(event)}{event_summary}\n{make_story(lines)}")
+        result.append(f"=={event_name}==\n{make_nav_span(event)}{event_summary}\n{make_story(lines)}")
     return "\n\n".join(result)
 
 
@@ -290,7 +299,7 @@ def make_main_scenario_page(event: dict) -> str:
 def make_main_story():
     scenarios = get_main_scenarios()
     with open("result.txt", "w", encoding="utf-8") as f:
-        selected = [s for s in scenarios if s['VolumeId'] == 1 and s['ChapterId'] == 1]
+        selected = [s for s in scenarios if s['VolumeId'] == 1 and s['ChapterId'] == 1 and s['EpisodeId'] <= 10]
         for s in selected:
             f.write(make_main_scenario_page(s))
 

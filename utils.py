@@ -95,7 +95,7 @@ scenario_character_name: dict[int, dict] = {}
 def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, str, str, str]], int]:
     from xxhash import xxh32
     result = []
-    speaker = -1
+    speaker = None
     if len(scenario_character_name) == 0:
         path = Path("json/ScenarioCharacterNameExcelTable.json")
         loaded = json.load(open(path, "r", encoding="utf-8"))
@@ -148,9 +148,10 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
             spine, portrait = '', ''
         
         # check if there is text after the last semicolon; if so, this is the speaker
+        obj = (name, nickname, spine, portrait, expression_number)
         if re.search(r"^\d+;([^;]+);(\d+);.", original) is not None or na:
-            speaker = len(result)
-        result.append((name, nickname, spine, portrait, expression_number))
+            speaker = obj
+        result.append(obj)
     return result, speaker
 
 
