@@ -12,7 +12,7 @@ s: APISite = pwb.Site()
 s.login()
 path = Path("./upload")
 
-def upload_images():
+def upload_cut_scenes():
     image_path = Path(r"./upload")
     
     def glob() -> list[Path]:
@@ -31,11 +31,11 @@ def upload_images():
     for f in glob():
         if f.name in already_exist:
             continue
-        is_cutscene = False
+        is_cut_scene = False
         if f.name.startswith("BG_CS"):
-            is_cutscene = True
+            is_cut_scene = True
             
-        if is_cutscene:
+        if is_cut_scene:
             cat = "[[Category:Cutscenes]]"
         else:
             cat = "[[Category:Background images]]"
@@ -46,10 +46,10 @@ def upload_images():
         except Exception as e:
             print(f.name, e)
 
-def upload_audio():
-    EXTENSION = "ogg"
-    COMMENT = "Batch upload sound tracks"
-    TEXT = ""
+def upload_files():
+    EXTENSION = "png"
+    COMMENT = "Batch upload fankit images"
+    TEXT = "[[Category:Fankit images]]"
     REDIRECT = False
     already_exist = set()
     
@@ -87,13 +87,12 @@ def upload_audio():
                 p.save(summary="Redirect to existing file")
             else:
                 print(f.name, "\n", e)
-                
-upload_images()
 
 def rename_files():
-    for f in p.glob("*.png"):
+    files = path.glob("*.png")
+    for f in files:
         fname = f.name
-        num = int(re.search(r"(\d+)", fname).group(1))
-        offset = 101 if fname[0] == 'b' else 0
-        num += offset
-        f.rename(p.joinpath(f"{num}.png"))
+        f.rename(path.joinpath(f"Fankit {fname}"))
+        
+        
+upload_files()
