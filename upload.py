@@ -47,9 +47,9 @@ def upload_cut_scenes():
             print(f.name, e)
 
 def upload_files():
-    EXTENSION = "png"
-    COMMENT = "Batch upload fankit images"
-    TEXT = "[[Category:Fankit images]]"
+    EXTENSIONS = ["png", "jpg"]
+    COMMENT = "Batch upload aoharu images"
+    TEXT = "[[Category:4-panel manga]]"
     REDIRECT = False
     already_exist = set()
     
@@ -60,7 +60,16 @@ def upload_files():
         return prefix + original
         return prefix + "Memorial Lobby " + original
     
-    gen = (FilePage(s, name_mapper(f.name)) for f in path.glob(f"*.{EXTENSION}"))
+    def get_all_files():
+        result = []
+        for e in EXTENSIONS:
+            result.extend(path.glob(f"*.{e}"))
+        return result
+            
+    file_list = get_all_files()
+    print(f"{len(file_list)} files found")
+    
+    gen = (FilePage(s, name_mapper(f.name)) for f in file_list)
     preload = PreloadingGenerator(generator=gen)
     exists_count = 0
     for p in preload:
@@ -70,7 +79,7 @@ def upload_files():
             already_exist.add(p.title(underscore=True, with_ns=False))
             exists_count += 1
     print(exists_count, "files already exist")
-    for f in path.glob(f"*.{EXTENSION}"):
+    for f in file_list:
         if name_mapper(f.name, with_file=False) in already_exist:
             continue
         try:
@@ -80,7 +89,7 @@ def upload_files():
             if not REDIRECT:
                 continue
             error_string = str(e)
-            search = re.search(r"duplicate of \['(.+\." + EXTENSION +")\'\]", error_string)
+            search = re.search(r"duplicate of", error_string)
             if search is not None:
                 p = FilePage(s, name_mapper(f.name))
                 p.text = f"#REDIRECT [[File:{search.group(1)}]]"

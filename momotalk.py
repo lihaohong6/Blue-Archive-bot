@@ -187,23 +187,17 @@ confirm = False
 
 def create_momotalk_page(p: pwb.Page, student_name, text):
     global confirm
-    if p.exists():
-        print(f"ERROR: {student_name}/MomoTalk already exists")
-        return
-    # if "#seo" in p.text:
-    #     print(f"INFO: {student_name} already contains seo info")
-    #     return
-    # if not pwb.Page(s, student_name).exists():
-    #     print("ERROR: Cannot find base page for " + student_name)
-    #     return
     if text.strip() == "":
         print(f"ERROR: text for {student_name} is empty.")
         return
+    setattr(p, "_bot_may_edit", True)
+    if text == p.text:
+        print(f"INFO: {student_name} has the same text.")
+        return
     if confirm:
-        x = input("Save? ")
+        x = input(f"Save {p.title()}? ")
         if x.lower() == 'a':
             confirm = False
-    setattr(p, "_bot_may_edit", True)
     p.text = text
     p.save("auto-generate momotalk")
 
@@ -217,21 +211,18 @@ def main():
     char_dict = get_character_table()
     momotalk_dict = load_momotalk()
     results: list[tuple[str, str]] = []
-    with open("result.txt", "w", encoding="utf-8") as out_file:
-        for char_id, momotalk in momotalk_dict.items():
-            if char_id not in char_dict:
-                continue
-            try:
-                favor_schedule = get_character_favor_schedule(char_id)
-            except Exception as e:
-                print(char_id)
-                continue
-            char_name = char_dict[char_id]
-            char_name = char_name[0].capitalize() + char_name[1:]
-            momotalk_text = make_character_momotalk(momotalk, char_name, favor_schedule)
-            results.append((char_name, momotalk_text))
-            out_file.write(momotalk_text)
-            out_file.write("\n\n")
+    for char_id, momotalk in momotalk_dict.items():
+        if char_id not in char_dict:
+            continue
+        try:
+            favor_schedule = get_character_favor_schedule(char_id)
+        except Exception as e:
+            print(char_id)
+            continue
+        char_name = char_dict[char_id]
+        char_name = char_name[0].capitalize() + char_name[1:]
+        momotalk_text = make_character_momotalk(momotalk, char_name, favor_schedule)
+        results.append((char_name, momotalk_text))
     pages = (pwb.Page(s, f"{pair[0]}/MomoTalk") for pair in results)
     pages = list(PreloadingGenerator(pages))
     for index, p in enumerate(pages):
