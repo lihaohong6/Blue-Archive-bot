@@ -5,7 +5,7 @@
     "attack speed buff"
   ],
   "Airi (Band)": [
-    "explosive efficiency",
+    "explosive attack buff",
     "critical resistance debuff"
   ],
   "Akane": [
@@ -147,6 +147,11 @@
     "attack self-buff",
     "stun"
   ],
+  "Fubuki (Swimsuit)": [
+    "explosive AOE damage",
+    "passive explosive AOE damage",
+    "explosive attack buff"
+  ],
   "Fuuka": [
     "AOE healing",
     "ally movement",
@@ -156,7 +161,7 @@
   "Fuuka (New Year)": [
     "cost reduction",
     "critical damage buff",
-    "single target healing",
+    "single target shielding",
     "passive attack buff"
   ],
   "Hanae": [
@@ -216,7 +221,7 @@
     "passive attack buff"
   ],
   "Hasumi": [
-    "single-target piercing damage",
+    "piercing single target damage",
     "critical damage self-buff",
     "critical rate self-buff"
   ],
@@ -372,6 +377,12 @@
     "defense debuff",
     "piercing attack buff"
   ],
+  "Kanna (Swimsuit)": [
+    "explosive single target damage",
+    "defense debuff",
+    "attack self-buff",
+    "special attack buff"
+  ],
   "Karin": [
     "piercing single target damage",
     "large enemy bonus damage",
@@ -428,6 +439,11 @@
     "piercing AOE damage",
     "accuracy debuff",
     "recovery debuff"
+  ],
+  "Kirino (Swimsuit)": [
+    "attack buff",
+    "cover summoning",
+    "passive attack buff"
   ],
   "Koharu": [
     "AOE healing",
@@ -500,7 +516,6 @@
   ],
   "Mashiro": [
     "explosive single target damage",
-    "passive explosive single target damage",
     "accuracy buff"
   ],
   "Mashiro (Swimsuit)": [
@@ -730,7 +745,7 @@
     "attack speed self-buff"
   ],
   "Saori": [
-    "guranteed critical",
+    "guaranteed critical",
     "explosive single target damage",
     "critical damage self-buff",
     "attack self-buff"
@@ -767,6 +782,11 @@
     "critical damage debuff",
     "passive attack buff",
     "critical damage resistance buff"
+  ],
+  "Serika (Swimsuit)": [
+    "mystic AOE damage",
+    "passive mystic AOE damage",
+    "passive critical damage buff"
   ],
   "Serina": [
     "single target healing",
@@ -857,8 +877,8 @@
     "evasion self-buff"
   ],
   "Toki (Bunny Girl)": [
-    "single target explosive damage",
-    "critical damage resistance",
+    "explosive single target damage",
+    "critical damage resistance debuff",
     "attack self-buff"
   ],
   "Tomoe": [
