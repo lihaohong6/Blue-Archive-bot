@@ -1,14 +1,24 @@
 import re
+from enum import Enum
+from collections import Counter
 
 import json
 from pathlib import Path
 import sys
-from utils import get_background_file_name, get_bgm_file_info, get_character_table, get_main_scenarios, load_favor_schedule
+from utils import get_background_file_name, get_bgm_file_info, get_character_table, get_main_scenarios, \
+    load_favor_schedule, get_music_info
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 localization_list: list[str] = []
 localization_dict: dict[int, int] = {}
+
+
+class StoryType(Enum):
+    RELATIONSHIP = 0
+    MAIN = 1
+    SIDE = 2
+    GROUP = 3
 
 
 def get_localization(localization_id: int) -> tuple[str, str]:
@@ -104,14 +114,17 @@ def strip_st_line(line: str) -> str:
     return line
 
 
-def make_story(lines: list[dict]) -> str:
+def make_story(lines: list[dict], story_type: StoryType, character_name: str = None,
+               character_list: list[str] = None, bgm_list: list[str] = None) -> str:
     global option_group
+    base_selection_group = -1
     from utils import get_scenario_character_id
     result = ["{{Story"]
     counter = 0
     hanging_bgm = False
     current_background = None
     onscreen_characters = set()
+    live2d_mode = False
     for line in lines:
         bgm_id = line['BGMId']
         # sometimes bgm stop is issued at the start; need to avoid that
@@ -132,16 +145,24 @@ def make_story(lines: list[dict]) -> str:
                 result.append(f"|{counter}=bgm\n|bgm{counter}={file_name}\n|name{counter}={bgm_name}\n"
                               f"|volume{counter}={bgm_volume}{loop_string}")
                 hanging_bgm = True
+
+                if bgm_list is not None:
+                    bgm_list.append(file_name)
         
         # parse background
         if line['BGName'] != 0:
             file_name = get_background_file_name(line['BGName'])
             # in some places (e.g. L2D) the same file name gets repeated multiple times
+            if "SpineBG_Lobby" in file_name and story_type == StoryType.RELATIONSHIP:
+                live2d_mode = True
+                file_name = f"Memorial Lobby {character_name}"
+            else:
+                live2d_mode = False
             if current_background != file_name:
                 counter += 1
                 result.append(f"|{counter}=background\n|background{counter}={file_name}")
                 current_background = file_name
-        
+
         script: str = line['ScriptKr']
         lower: str = script.lower()
         text: str = line['TextEn']
@@ -150,6 +171,12 @@ def make_story(lines: list[dict]) -> str:
         text = text.replace("#n", "<br/>")
         sound: str = line['Sound']
         selection_group: int = line['SelectionGroup']
+        if selection_group != 0:
+            if base_selection_group == -1:
+                base_selection_group = selection_group
+                selection_group = 1
+            else:
+                selection_group = selection_group - base_selection_group + 1
         if lower.startswith("#title;"):
             result.append(f"|title={text.replace(';', ': ')}")
             lower = ""
@@ -175,7 +202,6 @@ def make_story(lines: list[dict]) -> str:
         while re.search(r"#\d;", lower) is not None:
             lower, _ = re.subn(r"#\d;(hide|closeup|stiff|shake|dr|jump|d|em)?", "", lower)
         if re.search(st_regex, lower) is not None or lower.startswith("#st;"):
-            lower = ""
             is_st_line = True
         while "#fontsize;" in lower:
             lower = re.sub(r"#fontsize;\d+", "", lower)
@@ -188,17 +214,12 @@ def make_story(lines: list[dict]) -> str:
             # sound_string = f"\n|sound={counter}={sound}" if sound != "" else ""
             result.append(f"|{counter}=info\n|text{counter}=Screen shakes")
             # sound = ""
-            
-        group_and_option_string = ""
-        if selection_group != 0:
-            group_and_option_string = f"\n|group{counter + 1}={option_group}\n|option{counter + 1}={selection_group}"
 
         lower = lower.strip()
         if is_st_line:
             match = re.search(r"\[log=([^\]]+)\]", text)
             if match is not None:
-                log = match.group(1)
-                lower = f"3;{log};00"
+                lower = f"3;{match.group(1)};00"
         character_query_result, speaker = get_scenario_character_id(lower)
         
         if sound is not None and sound != "":
@@ -207,6 +228,7 @@ def make_story(lines: list[dict]) -> str:
             sound_name = re.sub(r"(?<! )_?([A-Z])", r" \1", sound_name)
             sound_name = re.sub(r"(_| )\d{2}.?$", "", sound_name, flags=re.IGNORECASE)
             result.append(f"|{counter}=sound\n|sound{counter}={sound}\n|name{counter}={sound_name.strip().lower()}")
+
         if lower == "":
             # finished all special effects and no text left, so we are all good except for maybe sound
             pass
@@ -217,7 +239,7 @@ def make_story(lines: list[dict]) -> str:
             counter += 1
             result.append(f"|{counter}=info\n|text{counter}={text}")
             # TODO: deal with na issues
-        elif lower.startswith("#na;") and len(character_query_result) == 0:
+        elif lower.startswith("#na;") and (len(character_query_result) == 0 or character_query_result[0][0] is None):
             counter += 1
             result.append(f"|{counter}=no-speaker\n|text{counter}={text}")
         elif lower.startswith("[s") or lower.startswith("[ns"):
@@ -228,20 +250,29 @@ def make_story(lines: list[dict]) -> str:
                 raise RuntimeError("Expected at least 1 option for " + text)
             elif len(options) == 1:
                 counter += 1
+                if selection_group != 0:
+                    group_and_option_string = f"\n|group{counter}={option_group}\n|option{counter}={selection_group}"
+                else:
+                    group_and_option_string = ""
                 result.append(f"|{counter}=sensei\n|text{counter}={options[0]}{group_and_option_string}")
             else:
                 # sensei or reply
                 option_group += 1
+                base_selection_group = -1
                 counter += 1
                 result_line = f"|{counter}=reply\n"
                 result_line += "\n".join(f"|option{counter}_{index}={o}" for index, o in enumerate(options, 1))
                 result_line += f"\n|group{counter}={option_group}"
                 result.append(result_line)
-        elif len(character_query_result) > 0:
+        elif len(character_query_result) > 0 or (live2d_mode and text != ""):
             # student line
             if is_st_line:
                 text = strip_st_line(text)
             characters = set("".join(s for s in r if s is not None) for r in character_query_result)
+            if selection_group != 0:
+                group_and_option_string = f"\n|group{counter + 1}={option_group}\n|option{counter + 1}={selection_group}"
+            else:
+                group_and_option_string = ""
             if characters != onscreen_characters and len(character_query_result) > 1:
                 onscreen_characters = characters
                 counter += 1
@@ -250,8 +281,15 @@ def make_story(lines: list[dict]) -> str:
                               f"|content{counter}={{{{Story/Row|{params}}}}}")
             if text.strip() != "":
                 if speaker is None:
-                    print(f"Line with no speaker: {script}")
-                name, nickname, spine, portrait, sequence = speaker
+                    if live2d_mode:
+                        name, nickname, spine, portrait, sequence = character_name, "", "", "", None
+                    else:
+                        print(f"Line with no speaker: {script}")
+                        raise RuntimeError()
+                else:
+                    name, nickname, spine, portrait, sequence = speaker
+                if name is not None and name != "" and character_list is not None:
+                    character_list.append(name)
                 counter += 1
                 if portrait == "" and spine == "":
                     portrait_string = ""
@@ -264,7 +302,8 @@ def make_story(lines: list[dict]) -> str:
             counter += 1
             result.append(f"|{counter}=info\n|text{counter}={text}")
         else:
-            print(f"Unrecognizable line: {script}. Processed: {lower}.")
+            pass
+            # print(f"Unrecognizable line: {script}. Processed: {lower}.")
             
     if hanging_bgm:
         counter += 1
@@ -276,15 +315,35 @@ def make_story(lines: list[dict]) -> str:
     return result
 
 
-def make_relationship_story_page(event_list: list[dict]) -> str:
-    result = []
+def make_categories(start: list[str] = None, bgm_list: list[str] = [], character_list: list[str] = []) -> str:
+    if start is None:
+        start = []
+    for bgm in bgm_list:
+        bgm_id = int(re.search(r"\d+", bgm).group(0))
+        bgm_name = get_music_info(bgm_id)
+        if bgm_name == "":
+            bgm_name = f"Stories with bgm {bgm.replace('_', ' ')}"
+        start.append(f"Stories with bgm {bgm_name}")
+    start.extend(f"Stories with character {char}" for char, _ in Counter(character_list).most_common())
+    return "\n".join(f"[[Category:{c}]]" for c in start)
+
+
+def make_relationship_story_page(event_list: list[dict], char_name: str) -> str:
+    result = ["{{Story/top}}"]
     global option_group
     option_group = 0
+    character_list = []
+    bgm_list = []
     for event in event_list:
         localization_id = event["LocalizeScenarioId"]
         event_name, event_summary = get_localization(localization_id)
         lines = get_favor_event(event['ScenarioSriptGroupId'])
-        result.append(f"=={event_name}==\n{make_nav_span(event)}{event_summary}\n{make_story(lines)}")
+        result.append(f"=={event_name}==\n"
+                      f"{make_nav_span(event)}{event_summary}\n"
+                      f"{make_story(lines, StoryType.RELATIONSHIP, 
+                                    character_name=char_name, 
+                                    character_list=character_list, bgm_list=bgm_list)}")
+    result.append(make_categories(['Relationship stories'], bgm_list, character_list))
     return "\n\n".join(result)
 
 
@@ -314,12 +373,10 @@ def make_all_relationship_event_pages():
                 continue
             try:
                 char_name = character_table[character_id]
-                if char_name != "Ayane (Swimsuit)":
+                if char_name != "Shimiko":
                     continue
-                s = make_relationship_story_page(event_list)
-                f.write(char_name + "!!!\n\n")
+                s = make_relationship_story_page(event_list, char_name)
                 f.write(s)
-                f.write("\n\n")
                 print(character_table[character_id] + " done")
             except NotImplementedError as e:
                 print(e)
@@ -327,7 +384,7 @@ def make_all_relationship_event_pages():
 
 
 def main():
-    make_main_story()
+    make_all_relationship_event_pages()
 
 
 if __name__ == "__main__":

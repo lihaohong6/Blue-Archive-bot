@@ -3,9 +3,14 @@ import re
 from pathlib import Path
 
 import pywikibot as pwb
+from pywikibot import Page, Site
 from pywikibot.pagegenerators import GeneratorFactory
+from wikitextparser import parse
 
 import json
+
+
+s = Site()
 
 
 def normalize_char_name(original: str) -> str:
@@ -18,7 +23,6 @@ def get_character_table() -> dict[int, str]:
         result = pickle.load(open(path, "rb"))
     else:
         path.parent.mkdir(exist_ok=True)
-        s = pwb.Site()
         gen = GeneratorFactory(s)
         gen.handle_args(["-cat:Characters"])
         gen = gen.getCombinedGenerator(preload=True)
@@ -200,6 +204,20 @@ def get_main_scenarios() -> list[dict]:
         result = json.load(f)
         result = result['DataList']
         return [row for row in result if row['ModeType'] == "Main"]
+
+
+music_dict: dict[int, str] = {}
+
+
+def get_music_info(music_id: int) -> str:
+    if len(music_dict) == 0:
+        p = Page(s, "Music")
+        parsed = parse(p.text)
+        for t in parsed.templates:
+            if t.name.strip() != "Track":
+                continue
+            music_dict[int(t.get_arg("Id").value)] = t.get_arg("Title").value.strip()
+    return music_dict[music_id]
 
 
 if __name__ == "__main__":
