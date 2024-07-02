@@ -220,5 +220,13 @@ def get_music_info(music_id: int) -> str:
     return music_dict[music_id]
 
 
+def music_file_name_to_title(file_name: str) -> str:
+    bgm_id = int(re.search(r"\d+", file_name).group(0))
+    bgm_name = get_music_info(bgm_id)
+    if bgm_name == "":
+        return file_name
+    return bgm_name
+
+
 if __name__ == "__main__":
     raise NotImplementedError("Do not run this script directly.")

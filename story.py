@@ -2,13 +2,16 @@ import re
 from enum import Enum
 from collections import Counter
 
+from pywikibot import Page, Site
+
 import json
 from pathlib import Path
 import sys
 from utils import get_background_file_name, get_bgm_file_info, get_character_table, get_main_scenarios, \
-    load_favor_schedule, get_music_info
+    load_favor_schedule, get_music_info, music_file_name_to_title
 
 sys.stdout.reconfigure(encoding='utf-8')
+s = Site()
 
 localization_list: list[str] = []
 localization_dict: dict[int, int] = {}
@@ -79,7 +82,6 @@ def make_nav_span(event: dict) -> str:
 zmc_regex = re.compile(r"#zmc;(instant|move);-?\d+,-?\d+;\d+(;\d+)?")
 st_regex = re.compile(r"#st;\[-?\d+,-?\d+];(serial|instant);\d+;")
 
-
 option_group: int = 0
 
 
@@ -136,19 +138,19 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             else:
                 file_name, bgm_info = get_bgm_file_info(bgm_id)
                 bgm_loop_start, bgm_loop_end, bgm_volume = bgm_info[:3]
-                bgm_name = file_name.replace("_", " ")
-                
+                bgm_name = music_file_name_to_title(file_name)
+
                 loop_string = f"\n|loop-start{counter}={bgm_loop_start}\n|loop-end{counter}={bgm_loop_end}" \
-                              if bgm_loop_start is not None or bgm_loop_end is not None \
-                              else ""
-                
+                    if bgm_loop_start is not None or bgm_loop_end is not None \
+                    else ""
+
                 result.append(f"|{counter}=bgm\n|bgm{counter}={file_name}\n|name{counter}={bgm_name}\n"
                               f"|volume{counter}={bgm_volume}{loop_string}")
                 hanging_bgm = True
 
                 if bgm_list is not None:
                     bgm_list.append(file_name)
-        
+
         # parse background
         if line['BGName'] != 0:
             file_name = get_background_file_name(line['BGName'])
@@ -190,7 +192,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             counter += 1
             result.append(f"|{counter}=info\n|text{counter}=To be continued")
             continue
-        
+
         is_st_line = False
         # process special commands
         while re.search(r"#wait;\d+", lower) is not None:
@@ -221,7 +223,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             if match is not None:
                 lower = f"3;{match.group(1)};00"
         character_query_result, speaker = get_scenario_character_id(lower)
-        
+
         if sound is not None and sound != "":
             counter += 1
             sound_name = re.sub(r"^ ?(SE|SFX)_", "", sound)
@@ -241,7 +243,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             # TODO: deal with na issues
         elif lower.startswith("#na;") and (len(character_query_result) == 0 or character_query_result[0][0] is None):
             counter += 1
-            result.append(f"|{counter}=no-speaker\n|text{counter}={text}")
+            result.append(f"|{counter}=info\n|text{counter}={text}")
         elif lower.startswith("[s") or lower.startswith("[ns"):
             options = re.split(r"\[n?s\d*\]", text)
             options = options[1:]
@@ -276,7 +278,8 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             if characters != onscreen_characters and len(character_query_result) > 1:
                 onscreen_characters = characters
                 counter += 1
-                params = "|".join(f"char{index}={r[2]}|sequence{index}={r[4]}" for index, r in enumerate(character_query_result))
+                params = "|".join(
+                    f"char{index}={r[2]}|sequence{index}={r[4]}" for index, r in enumerate(character_query_result))
                 result.append(f"|{counter}=screen\n"
                               f"|content{counter}={{{{Story/Row|{params}}}}}")
             if text.strip() != "":
@@ -304,14 +307,14 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
         else:
             pass
             # print(f"Unrecognizable line: {script}. Processed: {lower}.")
-            
+
     if hanging_bgm:
         counter += 1
         result.append(f"|{counter}=bgm-stop")
 
     result.append("}}")
     result = "\n\n".join(result)
-    
+
     return result
 
 
@@ -319,40 +322,48 @@ def make_categories(start: list[str] = None, bgm_list: list[str] = [], character
     if start is None:
         start = []
     for bgm in bgm_list:
-        bgm_id = int(re.search(r"\d+", bgm).group(0))
-        bgm_name = get_music_info(bgm_id)
-        if bgm_name == "":
-            bgm_name = f"Stories with bgm {bgm.replace('_', ' ')}"
-        start.append(f"Stories with bgm {bgm_name}")
+        start.append(f"Stories with bgm {music_file_name_to_title(bgm)}")
     start.extend(f"Stories with character {char}" for char, _ in Counter(character_list).most_common())
     return "\n".join(f"[[Category:{c}]]" for c in start)
 
 
-def make_relationship_story_page(event_list: list[dict], char_name: str) -> str:
-    result = ["{{Story/top}}"]
-    global option_group
-    option_group = 0
-    character_list = []
-    bgm_list = []
+def make_relationship_story_pages(event_list: list[dict], char_name: str):
+    base_page = Page(s, f"{char_name}/Relationship Story")
+    base_text = ["{{Story/RelationshipStoryTop}}"]
     for event in event_list:
         localization_id = event["LocalizeScenarioId"]
         event_name, event_summary = get_localization(localization_id)
+        episode_result = ["{{Story/RelationshipStoryEpisodeTop|" +
+                          f"title={event_name}|summary={event_summary}" +
+                          "}}"]
         lines = get_favor_event(event['ScenarioSriptGroupId'])
-        result.append(f"=={event_name}==\n"
-                      f"{make_nav_span(event)}{event_summary}\n"
-                      f"{make_story(lines, StoryType.RELATIONSHIP, 
-                                    character_name=char_name, 
-                                    character_list=character_list, bgm_list=bgm_list)}")
-    result.append(make_categories(['Relationship stories'], bgm_list, character_list))
-    return "\n\n".join(result)
+        global option_group
+        option_group = 0
+        character_list = []
+        bgm_list = []
+        episode_result.append(f"==Story==\n"
+                              f"{make_story(lines, StoryType.RELATIONSHIP,
+                                            character_name=char_name,
+                                            character_list=character_list, bgm_list=bgm_list)}")
+        episode_result.append(make_categories(['Relationship story episodes'], bgm_list, character_list))
+        sub_page = Page(s, base_page.title() + f"/{event_name}")
+        setattr(sub_page, "_bot_may_edit", True)
+        sub_page.text = "\n".join(episode_result)
+        sub_page.save(summary="batch create relation story episodes")
+        base_text.append(f"=={event_name}==")
+        base_text.append(f"[[/{event_name}|Full story]]")
+        base_text.append(event_summary)
+    base_text.append("[[Relationship stories]]")
+    base_page.text = "\n\n".join(base_text)
+    base_page.save(summary="batch create relationship story pages")
 
 
 def make_main_scenario_page(event: dict) -> str:
     ids = event["FrontScenarioGroupId"] + event["BackScenarioGroupId"]
     event_lines = []
-    for id in ids:
-        event_lines.extend(get_main_event(id))
-    return make_story(event_lines)
+    for event_id in ids:
+        event_lines.extend(get_main_event(event_id))
+    return make_story(event_lines, StoryType.MAIN)
 
 
 def make_main_story():
@@ -363,28 +374,26 @@ def make_main_story():
             f.write(make_main_scenario_page(s))
 
 
-def make_all_relationship_event_pages():
+def make_all_relationship_story_pages():
     favor_schedule = load_favor_schedule()
     character_table = get_character_table()
-    with open("result.txt", "w", encoding="utf-8") as f:
-        for character_id, event_list in favor_schedule.items():
-            if character_id not in character_table:
-                print(f"Character id {character_id} has no corresponding name.")
+    for character_id, event_list in favor_schedule.items():
+        if character_id not in character_table:
+            print(f"Character id {character_id} has no corresponding name.")
+            continue
+        try:
+            char_name = character_table[character_id]
+            if char_name != "Mika":
                 continue
-            try:
-                char_name = character_table[character_id]
-                if char_name != "Shimiko":
-                    continue
-                s = make_relationship_story_page(event_list, char_name)
-                f.write(s)
-                print(character_table[character_id] + " done")
-            except NotImplementedError as e:
-                print(e)
-                print(character_table[character_id] + " failed")
+            make_relationship_story_pages(event_list, char_name)
+            print(character_table[character_id] + " done")
+        except NotImplementedError as e:
+            print(e)
+            print(character_table[character_id] + " failed")
 
 
 def main():
-    make_all_relationship_event_pages()
+    make_all_relationship_story_pages()
 
 
 if __name__ == "__main__":
