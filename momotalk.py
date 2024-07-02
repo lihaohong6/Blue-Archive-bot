@@ -207,7 +207,7 @@ def get_character_favor_schedule(char_id: int) -> list[int]:
     return list(sorted(e['FavorRank'] for e in events))
 
 
-def main():
+def momotalk_main():
     char_dict = get_character_table()
     momotalk_dict = load_momotalk()
     results: list[tuple[str, str]] = []
@@ -231,4 +231,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    momotalk_main()
