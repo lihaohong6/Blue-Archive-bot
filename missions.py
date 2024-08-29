@@ -2,7 +2,9 @@ from dataclasses import dataclass, field
 import json
 import re
 import pywikibot as pwb
+import wikitextparser
 from pywikibot.pagegenerators import PreloadingGenerator
+
 
 @dataclass
 class Stage:
@@ -15,6 +17,7 @@ class Stage:
     challenge_turn_count: int = -1
     challenge_reward: list[tuple[int, int]] = field(default_factory=list)
 
+
 def read_stages() -> dict[int, Stage]:
     d = dict()
     lst = json.load(open("json/CampaignStageExcelTable.json", "r"))['DataList']
@@ -26,7 +29,7 @@ def read_stages() -> dict[int, Stage]:
         stage_number = stage['StageNumber']
         assert stage_number == 'A' or int(stage_number) > 0
         hard = 'Hard_Main_Stage' in name
-        d[stage["Id"]] = Stage(chapter, stage_number, hard, 
+        d[stage["Id"]] = Stage(chapter, stage_number, hard,
                                stage['StarConditionTacticRankSCount'],
                                stage["StarConditionTurnCount"])
     return d
@@ -73,7 +76,7 @@ def get_item(id: int) -> str:
 
 
 def make_template(stage: Stage):
-    challenge_rewards = "<br/>".join("{{ItemCard|" + get_item(item) + f"|quantity={quantity}" + "}}" 
+    challenge_rewards = "<br/>".join("{{ItemCard|" + get_item(item) + f"|quantity={quantity}" + "}}"
                                      for item, quantity in reversed(stage.challenge_reward))
     template = f"""{{{{ObjectivesTable
 |Objective2 = Acquire S rank {stage.s_rank} times
@@ -94,7 +97,7 @@ def propagate(stages: dict[int, Stage]):
         d[title] = stage
         page = pwb.Page(s, "Missions/" + title)
         pages.append(page)
-        
+
     gen = PreloadingGenerator(pages)
     for page in gen:
         page: pwb.Page
@@ -104,12 +107,15 @@ def propagate(stages: dict[int, Stage]):
         mission = page.title().replace("Missions/", "")
         stage = d[mission]
         template = make_template(stage)
-        section = f"==Objectives==\n{template}\n"
-        text, replacements = re.subn(r"(\n==Str)", "\n" + section + r"\1", text, re.MULTILINE)
-        if replacements == 0:
-            text = text.replace("[[Category:Missions", section + "\n[[Category:Missions")
+        parsed = wikitextparser.parse(text)
+        for s in parsed.sections:
+            if s.title is not None and s.title.strip() == "Drops":
+                break
+        else:
+            print("Cannot find drops on " + page.title())
+        s.contents = s.contents + "\n==Objectives==\n" + str(template) + "\n\n"
         setattr(page, "_bot_may_edit", True)
-        page.text = text
+        page.text = str(parsed)
         page.save(summary="autogenerate objectives", minor=False)
 
 
@@ -118,6 +124,7 @@ def main():
     read_min_turn(stages)
     read_three_star(stages)
     propagate(stages)
+
 
 if __name__ == "__main__":
     main()
