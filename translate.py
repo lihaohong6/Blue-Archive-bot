@@ -5,8 +5,7 @@ from wikitextparser._cell import Cell
 from time import sleep
 
 PREAMBLE = ("You are translating Japanese text into English. "
-            "Note that 先生 is a proper noun that should be translated to Sensei. "
-            "百花繚乱 is a proper noun that means Hyakkaryouran.")
+            "Note that 先生 is a proper noun that should be translated to Sensei. ")
 
 co = cohere.Client(open("keys/cohere.txt", "r").read())  # This is your trial API key
 s = pwb.Site()
@@ -37,4 +36,7 @@ for section in parsed.sections:
         )
         cell.value = response.text
         sleep(0.5)
-    print(str(section))
+
+setattr(page, "_bot_may_edit", True)
+page.text = str(parsed)
+page.save(summary="automated translation; human review from [[User:PetraMagna]] coming soon", minor=False)

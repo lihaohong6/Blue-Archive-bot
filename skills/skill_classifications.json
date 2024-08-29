@@ -6,7 +6,8 @@
   ],
   "Airi (Band)": [
     "explosive attack buff",
-    "critical resistance debuff"
+    "explosive single target damage",
+    "critical damage resistance debuff"
   ],
   "Akane": [
     "defense debuff",
@@ -30,7 +31,7 @@
   "Ako": [
     "critical rate buff",
     "critical damage buff",
-    "single-target healing"
+    "single target healing"
   ],
   "Ako (Dress)": [
     "critical rate buff",
@@ -52,7 +53,7 @@
   ],
   "Aru (Dress)": [
     "critical damage buff",
-    "single-target healing",
+    "single target healing",
     "critical resistance debuff"
   ],
   "Aru (New Year)": [
@@ -73,6 +74,11 @@
   "Atsuko": [
     "AOE healing",
     "evasion buff"
+  ],
+  "Atsuko (Swimsuit)": [
+    "single target healing",
+    "recovery buff",
+    "attack speed buff"
   ],
   "Ayane": [
     "AOE healing",
@@ -140,7 +146,7 @@
   "Eimi (Swimsuit)": [
     "AOE shielding",
     "ally movement",
-    "passive attack buff",
+    "attack buff",
     "attack speed buff"
   ],
   "Fubuki": [
@@ -181,6 +187,7 @@
   ],
   "Hanako (Swimsuit)": [
     "sonic AOE damage",
+    "passive sonic AOE damage",
     "defense debuff",
     "attack self-buff"
   ],
@@ -226,14 +233,14 @@
     "critical rate self-buff"
   ],
   "Hasumi (Sportswear)": [
-    "single-target mystic damage",
+    "mystic single target damage",
     "large enemy bonus damage"
   ],
   "Hatsune Miku": [
     "AOE healing",
     "attack buff",
     "critical rate buff",
-    "healing buff"
+    "recovery buff"
   ],
   "Hibiki": [
     "explosive AOE damage",
@@ -249,6 +256,7 @@
   "Hifumi": [
     "piercing AOE damage",
     "taunt",
+    "object summoning",
     "accuracy debuff",
     "cost recovery"
   ],
@@ -292,11 +300,22 @@
     "defense debuff",
     "passive attack buff"
   ],
+  "Hiyori (Swimsuit)": [
+    "piercing single target damage",
+    "critical rate self-buff",
+    "critical damage self-buff"
+  ],
   "Hoshino": [
     "piercing AOE damage",
     "stun",
     "self-healing",
     "self-shielding"
+  ],
+  "Hoshino (Battle)": [
+    "self movement",
+    "attack self-buff",
+    "cover summoning",
+    "defense debuff"
   ],
   "Hoshino (Swimsuit)": [
     "attack buff",
@@ -339,7 +358,7 @@
   ],
   "Izuna": [
     "self movement",
-    "attack speed buff",
+    "attack speed self-buff",
     "passive mystic AOE damage",
     "attack self-buff"
   ],
@@ -385,7 +404,7 @@
   ],
   "Karin": [
     "piercing single target damage",
-    "large enemy bonus damage",
+    "extra-large enemy bonus damage",
     "stun",
     "passive attack buff"
   ],
@@ -436,7 +455,7 @@
     "accuracy self-buff"
   ],
   "Kirino": [
-    "piercing AOE damage",
+    "explosive AOE damage",
     "accuracy debuff",
     "recovery debuff"
   ],
@@ -514,6 +533,7 @@
     "immortality",
     "evasion self-buff"
   ],
+  "Marina (Qipao)": [],
   "Mashiro": [
     "explosive single target damage",
     "accuracy buff"
@@ -630,6 +650,12 @@
     "stun",
     "passive attack buff"
   ],
+  "Moe (Swimsuit)": [
+    "sonic AOE damage",
+    "sonic single target damage",
+    "large enemy bonus damage",
+    "extra-large enemy bonus damage"
+  ],
   "Momiji": [
     "sonic AOE damage",
     "attack self-buff"
@@ -675,7 +701,7 @@
   "Neru (Bunny Girl)": [
     "self movement",
     "self-shielding",
-    "piercing AOE damage",
+    "explosive AOE damage",
     "taunt",
     "evasion self-buff",
     "medium enemy bonus damage"
@@ -690,7 +716,7 @@
   ],
   "Nodoka (Hot Spring)": [
     "AOE healing",
-    "healing buff",
+    "recovery buff",
     "passive attack buff"
   ],
   "Nonomi": [
@@ -712,6 +738,7 @@
   "Reisa": [
     "piercing AOE damage",
     "debuff removal",
+    "taunt",
     "self-healing",
     "defense debuff"
   ],
@@ -722,6 +749,7 @@
   ],
   "Rumi": [
     "AOE healing",
+    "debuff removal",
     "passive explosive AOE damage"
   ],
   "Saki": [
@@ -749,6 +777,11 @@
     "explosive single target damage",
     "critical damage self-buff",
     "attack self-buff"
+  ],
+  "Saori (Swimsuit)": [
+    "mystic AOE damage",
+    "attack self-buff",
+    "mystic DOT"
   ],
   "Saten Ruiko": [
     "piercing AOE damage",
@@ -828,6 +861,13 @@
     "cost reduction",
     "cost recovery"
   ],
+  "Shiroko\uff0aTerror": [
+    "mystic single target damage",
+    "mystic attack buff",
+    "critical rate self-buff",
+    "critical damage self-buff",
+    "immortality"
+  ],
   "Shizuko": [
     "cover summoning",
     "accuracy buff",
@@ -886,6 +926,13 @@
     "critical damage buff",
     "movement speed buff",
     "shield damage buff"
+  ],
+  "Tomoe (Qipao)": [
+    "ally movement",
+    "enemy movement",
+    "AOE shielding",
+    "defense debuff",
+    "attack buff"
   ],
   "Tsubaki": [
     "defense self-buff",

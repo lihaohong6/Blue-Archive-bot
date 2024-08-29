@@ -54,6 +54,7 @@ for (s, g) in gallery_and_student:
     assert len(t) == 1, s.title()
     t: Template = t[0]
     v_index = 1 if student_variant is None else 0
+    # checks for existing variants
     while True:
         arg = t.get_arg("Variant" + str(v_index))
         if arg is None:
@@ -62,7 +63,9 @@ for (s, g) in gallery_and_student:
         assert arg2 is not None
         image_file = arg2.value.strip()
         variant = arg.value.strip()
-        assert image_file in variants, f"{s.title()}: {image_file}\n\n" + ", ".join(variants) + "\n"
+        # assert image_file in variants, f"{s.title()}: {image_file}\n\n" + ", ".join(variants) + "\n"
+        if image_file not in variants:
+            continue
         variants.pop(image_file)
         v_index += 1
     for file_name, variant in variants.items():

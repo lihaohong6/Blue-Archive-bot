@@ -353,7 +353,7 @@ def make_relationship_story_pages(event_list: list[dict], char_name: str):
         base_text.append(f"=={event_name}==")
         base_text.append(f"[[/{event_name}|Full story]]")
         base_text.append(event_summary)
-    base_text.append("[[Relationship stories]]")
+    base_text.append("[[Category:Relationship stories]]")
     base_page.text = "\n\n".join(base_text)
     base_page.save(summary="batch create relationship story pages")
 
@@ -383,7 +383,7 @@ def make_all_relationship_story_pages():
             continue
         try:
             char_name = character_table[character_id]
-            if char_name != "Mika":
+            if char_name != "Shimiko":
                 continue
             make_relationship_story_pages(event_list, char_name)
             print(character_table[character_id] + " done")

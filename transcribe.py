@@ -1,9 +1,12 @@
+import sys
 from pathlib import Path
 import whisper
 import pywikibot as pwb
 from wikitextparser import parse
 from wikitextparser._cell import Cell
-    
+
+sys.stdout.reconfigure(encoding='utf-8')
+
 def main():
     model = whisper.load_model(name="large-v3", download_root="./models")
     print("Model loaded")
