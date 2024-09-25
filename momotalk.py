@@ -208,7 +208,7 @@ def get_character_favor_schedule(char_id: int) -> list[int]:
 
 
 def momotalk_main():
-    char_dict = get_character_table()
+    char_dict = get_character_table(use_cache=False)
     momotalk_dict = load_momotalk()
     results: list[tuple[str, str]] = []
     for char_id, momotalk in momotalk_dict.items():
