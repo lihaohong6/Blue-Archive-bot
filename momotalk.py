@@ -192,7 +192,7 @@ def create_momotalk_page(p: pwb.Page, student_name, text):
         return
     setattr(p, "_bot_may_edit", True)
     if text == p.text:
-        print(f"INFO: {student_name} has the same text.")
+        # print(f"INFO: {student_name} has the same text.")
         return
     if confirm:
         x = input(f"Save {p.title()}? ")
@@ -227,6 +227,7 @@ def momotalk_main():
     pages = list(PreloadingGenerator(pages))
     for index, p in enumerate(pages):
         create_momotalk_page(p, results[index][0], results[index][1])
+    print("MomoTalk done")
 
 
 

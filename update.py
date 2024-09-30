@@ -1,3 +1,4 @@
+from pathlib import Path
 import requests
 
 
@@ -34,6 +35,7 @@ def data_download():
 def wiki_repo_download():
     files = ["translation/LocalizeCharProfile.json"]
     download("https://raw.githubusercontent.com/electricgoat/bluearchivewiki/master/", files)
-    
+
+Path("json").mkdir(exist_ok=True)
 data_download()
 wiki_repo_download()

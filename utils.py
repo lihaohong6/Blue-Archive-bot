@@ -29,7 +29,7 @@ def get_character_table(use_cache: bool = True) -> dict[int, str]:
         result = {}
         for p in gen:
             char_id = int(re.search(r"Id *= *([0-9]+)", p.text).group(1))
-            char_name = re.search(r"\| Name = ([^\n]+)", p.text).group(1)
+            char_name = re.search(r"\| *(Wiki)?[Nn]ame *= *(?P<name>[^\n]+)", p.text).group("name")
             result[char_id] = char_name
         pickle.dump(result, open(path, "wb"))
     return result
