@@ -45,7 +45,8 @@
   ],
   "Arisu (Maid)": [
     "mystic single target damage",
-    "attack self-buff"
+    "attack self-buff",
+    "mystic attack buff"
   ],
   "Aru": [
     "explosive single target damage",
@@ -464,6 +465,7 @@
     "cover summoning",
     "passive attack buff"
   ],
+  "Kisaki": [],
   "Koharu": [
     "AOE healing",
     "explosive AOE damage",
@@ -533,7 +535,11 @@
     "immortality",
     "evasion self-buff"
   ],
-  "Marina (Qipao)": [],
+  "Marina (Qipao)": [
+    "piercing single target damage",
+    "piercing DOT",
+    "attack speed self-buff"
+  ],
   "Mashiro": [
     "explosive single target damage",
     "accuracy buff"
@@ -552,6 +558,7 @@
     "self-healing"
   ],
   "Meru": [
+    "damage buff",
     "piercing single target damage",
     "piercing DOT"
   ],
@@ -735,6 +742,7 @@
     "self-healing",
     "attack speed self-buff"
   ],
+  "Reijo": [],
   "Reisa": [
     "piercing AOE damage",
     "debuff removal",
@@ -1021,8 +1029,8 @@
     "self movement",
     "AOE shielding",
     "self-shielding",
-    "self-healing",
-    "attack self-buff"
+    "healing buff",
+    "mystic attack buff"
   ],
   "Yuzu": [
     "piercing AOE damage",
