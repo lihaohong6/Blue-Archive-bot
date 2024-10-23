@@ -118,17 +118,19 @@ def make_conversation(conversation: list[dict], char_name: str,
             line += "\n"
             if group_id in reply_group:
                 line += f"|group{counter}={student_reply_group}\n|option{counter}={reply_group[group_id]}\n"
-        # extra conditions ensure that relatioship popup does not appear twice
-        if c['FavorScheduleId'] != 0 and group_id not in no_favor_schedule:
+        # extra conditions ensure that relationship popup does not appear twice
+        # Izumi has a false positive where is FavorScheduleId is non-zero but an event shouldn't appear.
+        #  This is ruled out by the last check.
+        if c['FavorScheduleId'] != 0 and group_id not in no_favor_schedule and c['FavorScheduleId'] != c['PreConditionFavorScheduleId']:
             counter += 1
             line += f"\n|{counter}=relationship\n|name{counter}={char_name}\n"
             line += f"|favor{counter}={unlock_favor}\n"
             relationship_event_found += 1
+            assert relationship_event_found == 1, f"For {char_name}: relationship event should occur exactly once; occurred {relationship_event_found} time(s) instead. Last group id: {group_id}"
         result.append(line)
         prev_group_id = group_id
         i += 1
         counter += 1
-    assert relationship_event_found == 1, f"For {char_name}: relationship event should occur exactly once; occurred {relationship_event_found} time(s) instead. Last group id: {group_id}"
 
     result.append("}}")
 
@@ -192,7 +194,7 @@ def create_momotalk_page(p: pwb.Page, student_name, text):
         return
     setattr(p, "_bot_may_edit", True)
     if text == p.text:
-        print(f"INFO: {student_name} has the same text.")
+        # print(f"INFO: {student_name} has the same text.")
         return
     if confirm:
         x = input(f"Save {p.title()}? ")
@@ -208,7 +210,7 @@ def get_character_favor_schedule(char_id: int) -> list[int]:
 
 
 def momotalk_main():
-    char_dict = get_character_table()
+    char_dict = get_character_table(use_cache=False)
     momotalk_dict = load_momotalk()
     results: list[tuple[str, str]] = []
     for char_id, momotalk in momotalk_dict.items():
@@ -227,6 +229,7 @@ def momotalk_main():
     pages = list(PreloadingGenerator(pages))
     for index, p in enumerate(pages):
         create_momotalk_page(p, results[index][0], results[index][1])
+    print("MomoTalk done")
 
 
 

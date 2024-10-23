@@ -17,9 +17,9 @@ def normalize_char_name(original: str) -> str:
     return re.sub(r" ?\(.+\)", "", original)
 
 
-def get_character_table() -> dict[int, str]:
+def get_character_table(use_cache: bool = True) -> dict[int, str]:
     path = Path("cache/char_id.pickle")
-    if path.exists():
+    if path.exists() and use_cache:
         result = pickle.load(open(path, "rb"))
     else:
         path.parent.mkdir(exist_ok=True)
@@ -29,7 +29,7 @@ def get_character_table() -> dict[int, str]:
         result = {}
         for p in gen:
             char_id = int(re.search(r"Id *= *([0-9]+)", p.text).group(1))
-            char_name = re.search(r"\| Name = ([^\n]+)", p.text).group(1)
+            char_name = re.search(r"\| *(Wiki)?[Nn]ame *= *(?P<name>[^\n]+)", p.text).group("name")
             result[char_id] = char_name
         pickle.dump(result, open(path, "wb"))
     return result
