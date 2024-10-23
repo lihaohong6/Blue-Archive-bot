@@ -104,4 +104,4 @@ def rename_files():
         f.rename(path.joinpath(f"Fankit {fname}"))
         
         
-upload_files()
+upload_cut_scenes()
