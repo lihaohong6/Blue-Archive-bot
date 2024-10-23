@@ -118,17 +118,19 @@ def make_conversation(conversation: list[dict], char_name: str,
             line += "\n"
             if group_id in reply_group:
                 line += f"|group{counter}={student_reply_group}\n|option{counter}={reply_group[group_id]}\n"
-        # extra conditions ensure that relatioship popup does not appear twice
-        if c['FavorScheduleId'] != 0 and group_id not in no_favor_schedule:
+        # extra conditions ensure that relationship popup does not appear twice
+        # Izumi has a false positive where is FavorScheduleId is non-zero but an event shouldn't appear.
+        #  This is ruled out by the last check.
+        if c['FavorScheduleId'] != 0 and group_id not in no_favor_schedule and c['FavorScheduleId'] != c['PreConditionFavorScheduleId']:
             counter += 1
             line += f"\n|{counter}=relationship\n|name{counter}={char_name}\n"
             line += f"|favor{counter}={unlock_favor}\n"
             relationship_event_found += 1
+            assert relationship_event_found == 1, f"For {char_name}: relationship event should occur exactly once; occurred {relationship_event_found} time(s) instead. Last group id: {group_id}"
         result.append(line)
         prev_group_id = group_id
         i += 1
         counter += 1
-    assert relationship_event_found == 1, f"For {char_name}: relationship event should occur exactly once; occurred {relationship_event_found} time(s) instead. Last group id: {group_id}"
 
     result.append("}}")
 
