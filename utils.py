@@ -4,7 +4,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import pywikibot as pwb
 from pywikibot import Page, Site
 from pywikibot.pagegenerators import GeneratorFactory
 from wikitextparser import parse
@@ -117,70 +116,6 @@ def load_favor_schedule() -> dict[int, list[dict]]:
 
 scenario_character_name: dict[int, dict] = {}
 
-
-def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, str, str, str]], int]:
-    from xxhash import xxh32
-    result = []
-    speaker = None
-    if len(scenario_character_name) == 0:
-        path = Path("json/ScenarioCharacterNameExcelTable.json")
-        loaded = json.load(open(path, "r", encoding="utf-8"))
-        loaded = loaded['DataList']
-        for row in loaded:
-            cid = row['CharacterName']
-            scenario_character_name[cid] = row
-    # search_text = re.search(r"^\d+;([^;a-zA-Z]+) ?([a-zA-Z]+)?;\d+;?", text_ko)
-    for original in text_ko_original.split("\n"):
-        search_text = re.search(r"^\d+;([^;]+);(\d+);?", original)
-        if search_text is not None:
-            name_ko = search_text.group(1)
-            expression_number = search_text.group(2)
-            na = False
-        else:
-            search_text = re.search(r"#na;([^\n#;]+)(;.+)?", original)
-            if search_text is not None:
-                na = True
-                if search_text.group(2) is not None:
-                    name_ko = search_text.group(1)
-                else:
-                    result.append([None, None, None, None, None])
-                    continue
-                expression_number = None
-            else:
-                continue
-                
-        # a -> A; b -> B
-        name_ko = name_ko.upper()
-        hashed = int(xxh32(name_ko).intdigest())
-        if hashed not in scenario_character_name:
-            raise NotImplementedError(f"Cannot find scenario character name in table. Text: {name_ko}. Hash: {hashed}.")
-            continue
-        row = scenario_character_name[hashed]
-        name = row['NameEN']
-        nickname = row['NicknameEN']
-        spine = row['SpinePrefabName'].split("/")[-1]
-        if spine is not None and spine.strip() != "":
-            spine = spine.replace("CharacterSpine_", "")
-            spine = dev_name_to_canonical_name(spine)
-        portrait = row['SmallPortrait'].split("/")[-1]
-        if portrait is not None and portrait != "":
-            if "Student_Portrait_" in portrait:
-                portrait = portrait.replace("Student_Portrait_", "")
-                portrait = dev_name_to_canonical_name(portrait)
-            elif "NPC_Portrait_" in portrait:
-                portrait = portrait.replace("NPC_Portrait_", "")
-                portrait = dev_name_to_canonical_name(portrait)
-        if na:
-            spine, portrait = '', ''
-        
-        # check if there is text after the last semicolon; if so, this is the speaker
-        obj = (name, nickname, spine, portrait, expression_number)
-        if re.search(r"^\d+;([^;]+);(\d+);.", original) is not None or na:
-            speaker = obj
-        result.append(obj)
-    return result, speaker
-
-
 background_file_name: dict[int, str] = {}
 
 
@@ -219,13 +154,6 @@ def get_bgm_file_info(query_id: int) -> tuple[str, list[float]]:
     if query_id in bgm_file_info:
         return bgm_file_info[query_id]
     raise RuntimeError(f"Bgm with id {query_id} not found.")
-
-
-def get_main_scenarios() -> list[dict]:
-    with open ("json/ScenarioModeExcelTable.json", "r", encoding="utf-8") as f:
-        result = json.load(f)
-        result = result['DataList']
-        return [row for row in result if row['ModeType'] == "Main"]
 
 
 music_dict: dict[int, str] = {}

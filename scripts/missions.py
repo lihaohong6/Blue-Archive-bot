@@ -20,7 +20,7 @@ class Stage:
 
 def read_stages() -> dict[int, Stage]:
     d = dict()
-    lst = json.load(open("json/CampaignStageExcelTable.json", "r"))['DataList']
+    lst = json.load(open("../json/CampaignStageExcelTable.json", "r"))['DataList']
     for stage in lst:
         name = stage['Name']
         if "Sub_Stage" in name or "Tutorial_Stage" in name:
@@ -36,7 +36,7 @@ def read_stages() -> dict[int, Stage]:
 
 
 def read_three_star(stages: dict[int, Stage]):
-    lst = json.load(open("json/CampaignStageRewardExcelTable.json", "r"))['DataList']
+    lst = json.load(open("../json/CampaignStageRewardExcelTable.json", "r"))['DataList']
     for reward in lst:
         group_id = reward['GroupId']
         if group_id not in stages:
@@ -48,7 +48,7 @@ def read_three_star(stages: dict[int, Stage]):
 
 
 def read_min_turn(stages: dict[int, Stage]):
-    lst = json.load(open("json/MissionExcelTable.json", "r"))['DataList']
+    lst = json.load(open("../json/MissionExcelTable.json", "r"))['DataList']
     for challenge in lst:
         if challenge['Category'] != 'Challenge':
             continue
