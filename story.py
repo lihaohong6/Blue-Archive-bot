@@ -4,17 +4,13 @@ from collections import Counter
 
 from pywikibot import Page, Site
 
-import json
-from pathlib import Path
 import sys
+
 from utils import get_background_file_name, get_bgm_file_info, get_character_table, get_main_scenarios, \
-    load_favor_schedule, get_music_info, music_file_name_to_title
+    load_favor_schedule, get_music_info, music_file_name_to_title, load_json, load_json_list
 
 sys.stdout.reconfigure(encoding='utf-8')
 s = Site()
-
-localization_list: list[str] = []
-localization_dict: dict[int, int] = {}
 
 
 class StoryType(Enum):
@@ -25,54 +21,54 @@ class StoryType(Enum):
 
 
 def get_localization(localization_id: int) -> tuple[str, str]:
-    if len(localization_list) == 0:
-        loaded = json.load(open("json/LocalizeScenarioExcelTable.json", "r", encoding="utf-8"))
+    """
+    This file is organized in a way that summary immediately follows the title, so we can take advantage
+    of this by recording the index of each json entry.
+    """
+    def process(loaded: dict) -> tuple[list, dict]:
         loaded = loaded['DataList']
+        localization_list: list[str] = []
+        localization_dict: dict[int, int] = {}
         for index, row in enumerate(loaded):
             row_id = row['Key']
             row_text = row['En']
             localization_list.append(row_text)
             localization_dict[row_id] = index
-    index = localization_dict[localization_id]
-    return localization_list[index], localization_list[index + 1]
+        return localization_list, localization_dict
+    lst, d = load_json("LocalizeScenarioExcelTable.json", process)
+
+    index = d[localization_id]
+    return lst[index], lst[index + 1]
 
 
 favor_events: dict[int, list[dict]] = {}
 
 
-def get_favor_event(query_group_id: int) -> list[dict]:
-    if len(favor_events) == 0:
-        for i in range(1, 10):
-            path = Path(f"json/ScenarioScriptFavor{i}ExcelTable.json")
-            if not path.exists():
-                continue
-            loaded = json.load(open(path, "r", encoding="utf-8"))
+def get_events(pattern: str) -> dict:
+    def process(d: list[dict]) -> dict[int, list[dict]]:
+        result: dict[int, list[dict]] = {}
+        for loaded in d:
             loaded = loaded['DataList']
             for row in loaded:
                 group_id = row['GroupId']
-                if group_id not in favor_events:
-                    favor_events[group_id] = []
-                favor_events[group_id].append(row)
-    return favor_events[query_group_id]
+                if group_id not in result:
+                    result[group_id] = []
+                result[group_id].append(row)
+        return result
+    file_names = tuple(pattern.format(i) for i in range(1, 10))
+    e = load_json_list(file_names, process)
+    return e
 
 
-main_events: dict[int, list[dict]] = {}
+
+def get_favor_event(query_group_id: int) -> list[dict]:
+    e = get_events("ScenarioScriptFavor{0}ExcelTable.json")
+    return e[query_group_id]
 
 
 def get_main_event(query_group_id: int) -> list[dict]:
-    if len(main_events) == 0:
-        for i in range(1, 10):
-            path = Path(f"json/ScenarioScriptMain{i}ExcelTable.json")
-            if not path.exists():
-                continue
-            loaded = json.load(open(path, "r", encoding="utf-8"))
-            loaded = loaded['DataList']
-            for row in loaded:
-                group_id = row['GroupId']
-                if group_id not in main_events:
-                    main_events[group_id] = []
-                main_events[group_id].append(row)
-    return main_events[query_group_id]
+    e = get_events("ScenarioScriptMain{0}ExcelTable.json")
+    return e[query_group_id]
 
 
 def make_nav_span(event: dict) -> str:

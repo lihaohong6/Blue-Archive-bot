@@ -1,6 +1,8 @@
 import pickle
 import re
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pywikibot as pwb
 from pywikibot import Page, Site
@@ -11,6 +13,26 @@ import json
 
 
 s = Site()
+
+
+json_cache: dict[str | tuple[str, ...], Any] = {}
+
+
+def load_json[T](file_name: str, processor: Callable[[dict], T] = lambda x: x) -> T:
+    if file_name not in json_cache:
+        json_cache[file_name] = processor(json.load(open("json/" + file_name, "r", encoding="utf-8")))
+    return json_cache[file_name]
+
+
+def load_json_list[T](files: tuple[str, ...], processor: Callable[[list[dict]], T]) -> T:
+    if files not in json_cache:
+        json_dicts = []
+        for f in files:
+            p = Path("json") / f
+            if p.exists():
+                json_dicts.append(json.load(open(p, "r", encoding="utf-8")))
+        json_cache[files] = processor(json_dicts)
+    return json_cache[files]
 
 
 def normalize_char_name(original: str) -> str:
