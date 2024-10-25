@@ -266,7 +266,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
                 result_line += "\n".join(f"|option{counter}_{index}={o}" for index, o in enumerate(options, 1))
                 result_line += f"\n|group{counter}={option_group}"
                 result.append(result_line)
-        elif len(character_query_result) > 0 or (live2d_mode and text != ""):
+        elif (len(character_query_result) > 0 and speaker is not None) or (live2d_mode and text != ""):
             # student line
             if is_st_line:
                 text = strip_st_line(text)
@@ -369,7 +369,7 @@ def make_main_scenario_page(event: dict) -> str:
 def make_main_story():
     scenarios = get_main_scenarios()
     with open("result.txt", "w", encoding="utf-8") as f:
-        selected = [s for s in scenarios if s['VolumeId'] == 1 and s['ChapterId'] == 1 and s['EpisodeId'] <= 10]
+        selected = [s for s in scenarios if s['VolumeId'] == 1 and s['ChapterId'] == 1 and 11 <= s['EpisodeId'] <= 20]
         for s in selected:
             f.write(make_main_scenario_page(s))
 
@@ -393,7 +393,7 @@ def make_all_relationship_story_pages():
 
 
 def main():
-    make_all_relationship_story_pages()
+    make_main_story()
 
 
 if __name__ == "__main__":

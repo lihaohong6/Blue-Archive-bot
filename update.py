@@ -33,7 +33,7 @@ def data_download():
 
 
 def wiki_repo_download():
-    files = ["translation/LocalizeCharProfile.json"]
+    files = ["translation/" + s for s in ["LocalizeCharProfile.json", "devname_map.json", "devname_map_aux.json"]]
     download("https://raw.githubusercontent.com/electricgoat/bluearchivewiki/master/", files)
 
 Path("json").mkdir(exist_ok=True)
