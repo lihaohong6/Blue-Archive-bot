@@ -1,3 +1,4 @@
+import dataclasses
 import pickle
 import re
 from collections.abc import Callable
@@ -167,7 +168,12 @@ def get_music_info(music_id: int) -> str:
             if t.name.strip() != "Track":
                 continue
             music_dict[int(t.get_arg("Id").value)] = t.get_arg("Title").value.strip()
-    return music_dict[music_id]
+    return music_dict.get(music_id, "")
+
+
+def get_music_dict() -> dict[int, str]:
+    get_music_info(0)
+    return music_dict
 
 
 def music_file_name_to_title(file_name: str) -> str:
@@ -176,6 +182,29 @@ def music_file_name_to_title(file_name: str) -> str:
     if bgm_name == "":
         return file_name
     return bgm_name
+
+
+def save_json_page(page: Page | str, obj, summary: str = "update json page"):
+    class EnhancedJSONEncoder(json.JSONEncoder):
+        def default(self, o):
+            if dataclasses.is_dataclass(o):
+                return dataclasses.asdict(o)
+            return super().default(o)
+
+    def dump(o):
+        return json.dumps(o, indent=4, cls=EnhancedJSONEncoder)
+
+    if isinstance(page, str):
+        page = Page(s, page)
+
+    if page.text != "":
+        original = dump(json.loads(page.text))
+    else:
+        original = ""
+    modified = dump(obj)
+    if original != modified:
+        page.text = modified
+        page.save(summary=summary)
 
 
 if __name__ == "__main__":

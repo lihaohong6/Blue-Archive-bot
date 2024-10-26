@@ -2,8 +2,11 @@ import json
 import re
 from pathlib import Path
 
+from pywikibot import Site
+
 from utils import scenario_character_name, dev_name_to_canonical_name, load_json, load_json_list
 
+s = Site()
 
 def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, str, str, str]], int]:
     from xxhash import xxh32
@@ -140,8 +143,8 @@ def make_categories(start: list[str] = None, character_list: set[str] = None, bg
         bgm_list = set()
     if start is None:
         start = set()
-    bgm_string = "{{Story/BGMList | " + " | ".join(re.search(r"\d+", bgm).group(0) for bgm in bgm_list) + " }}"
-    char_string = "{{Story/CharList | " + " | ".join(character_list) + " }}"
+    bgm_string = "{{Story/BGMList | " + " | ".join(re.search(r"\d+", bgm).group(0) for bgm in sorted(bgm_list)) + " }}"
+    char_string = "{{Story/CharList | " + " | ".join(sorted(character_list)) + " }}"
     return bgm_string + char_string + "\n".join(f"[[Category:{c}]]" for c in start)
 
 
