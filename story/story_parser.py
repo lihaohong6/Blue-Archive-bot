@@ -50,6 +50,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
                 result.append(f"|{counter}=bgm-stop")
                 hanging_bgm = False
             else:
+                bgm_list.add(bgm_id)
                 file_name, bgm_info = get_bgm_file_info(bgm_id)
                 bgm_loop_start, bgm_loop_end, bgm_volume = bgm_info[:3]
                 bgm_name = music_file_name_to_title(file_name)
@@ -62,21 +63,22 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
                               f"|volume{counter}={bgm_volume}{loop_string}")
                 hanging_bgm = True
 
-                bgm_list.add(file_name)
-
         # parse background
         if line['BGName'] != 0:
             file_name = get_background_file_name(line['BGName'])
-            # in some places (e.g. L2D) the same file name gets repeated multiple times
-            if "SpineBG_Lobby" in file_name and story_type == StoryType.RELATIONSHIP:
-                live2d_mode = True
-                file_name = f"Memorial Lobby {character_name}"
+            if file_name is None:
+                print(f"Background image not found for {line['BGName']}")
             else:
-                live2d_mode = False
-            if current_background != file_name:
-                counter += 1
-                result.append(f"|{counter}=background\n|background{counter}={file_name}")
-                current_background = file_name
+                # in some places (e.g. L2D) the same file name gets repeated multiple times
+                if "SpineBG_Lobby" in file_name and story_type == StoryType.RELATIONSHIP:
+                    live2d_mode = True
+                    file_name = f"Memorial Lobby {character_name}"
+                else:
+                    live2d_mode = False
+                if current_background != file_name:
+                    counter += 1
+                    result.append(f"|{counter}=background\n|background{counter}={file_name}")
+                    current_background = file_name
 
         script: str = line['ScriptKr']
         lower: str = script.lower()
@@ -136,7 +138,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             match = re.search(r"\[log=([^\]]+)\]", text)
             if match is not None:
                 lower = f"3;{match.group(1)};00"
-        character_query_result, speaker = get_scenario_character_id(lower)
+        character_query_result, speaker = get_scenario_character_id(script)
 
         if sound is not None and sound != "":
             counter += 1
@@ -181,6 +183,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
                 result_line += f"\n|group{counter}={option_group}"
                 result.append(result_line)
         elif (len(character_query_result) > 0 and speaker is not None) or (live2d_mode and text != ""):
+            character_query_result = [res for res in character_query_result if res[0] is not None]
             # student line
             if is_st_line:
                 text = strip_st_line(text)

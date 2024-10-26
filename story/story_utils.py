@@ -40,10 +40,13 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
                 continue
 
         # a -> A; b -> B
-        name_ko = name_ko.upper()
-        hashed = int(xxh32(name_ko).intdigest())
-        if hashed not in scenario_character_name:
-            raise NotImplementedError(f"Cannot find scenario character name in table. Text: {name_ko}. Hash: {hashed}.")
+        string_options = [name_ko, name_ko.upper(), name_ko.lower(), name_ko.encode('utf-8')]
+        for string in string_options:
+            hashed = int(xxh32(string).intdigest())
+            if hashed in scenario_character_name:
+                break
+        else:
+            print(f"Cannot find scenario character name in table. Text: {name_ko}. Hash: {hashed}.")
             continue
         row = scenario_character_name[hashed]
         name = row['NameEN']
@@ -95,7 +98,7 @@ def get_story_title_and_summary(localization_id: int) -> tuple[str, str]:
             localization_dict[row_id] = index
         return localization_list, localization_dict
 
-    lst, d = load_json("LocalizeScenarioExcelTable.json", process)
+    lst, d = load_json("LocalizeExcelTable.json", process)
 
     index = d[localization_id]
     return lst[index], lst[index + 1]
@@ -143,7 +146,7 @@ def make_categories(start: list[str] = None, character_list: set[str] = None, bg
         bgm_list = set()
     if start is None:
         start = set()
-    bgm_string = "{{Story/BGMList | " + " | ".join(re.search(r"\d+", bgm).group(0) for bgm in sorted(bgm_list)) + " }}"
+    bgm_string = "{{Story/BGMList | " + " | ".join(str(bgm) for bgm in sorted(bgm_list)) + " }}"
     char_string = "{{Story/CharList | " + " | ".join(sorted(character_list)) + " }}"
     return bgm_string + char_string + "\n".join(f"[[Category:{c}]]" for c in start)
 
@@ -170,6 +173,6 @@ def get_favor_event(query_group_id: int) -> list[dict]:
     return e[query_group_id]
 
 
-def get_main_event(query_group_id: int) -> list[dict]:
-    e = get_events("ScenarioScriptMain{0}ExcelTable.json")
-    return e[query_group_id]
+def get_main_event(query_group_id: int) -> list[dict] | None:
+    e = get_events("ScenarioScriptExcelTable{0}.json")
+    return e.get(query_group_id)

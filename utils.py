@@ -79,7 +79,7 @@ def dev_name_to_canonical_name(dev_name: str) -> str:
         return dev_name_map[dev_name.capitalize()]
     if dev_name.lower() in dev_name_map:
         return dev_name_map[dev_name.lower()]
-    print("Cannot find canonical name of " + dev_name)
+    # print("Cannot find canonical name of " + dev_name)
     return ""
 
 
@@ -120,7 +120,7 @@ scenario_character_name: dict[int, dict] = {}
 background_file_name: dict[int, str] = {}
 
 
-def get_background_file_name(background_id: int) -> str:
+def get_background_file_name(background_id: int) -> str | None:
     if len(background_file_name) == 0:
         loaded = json.load(open("json/ScenarioBGNameExcelTable.json", "r", encoding="utf-8"))
         loaded = loaded['DataList']
@@ -128,7 +128,7 @@ def get_background_file_name(background_id: int) -> str:
             bg_id = row['Name']
             bg_name: str = row['BGFileName']
             background_file_name[bg_id] = bg_name.split("/")[-1]
-    return background_file_name[background_id]
+    return background_file_name.get(background_id, None)
 
 
 bgm_file_info: dict[int, tuple[str, list[float]]] = {}
@@ -177,7 +177,10 @@ def get_music_dict() -> dict[int, str]:
 
 
 def music_file_name_to_title(file_name: str) -> str:
-    bgm_id = int(re.search(r"\d+", file_name).group(0))
+    bgm_id_match = re.search(r"\d+", file_name)
+    if bgm_id_match is None:
+        return file_name
+    bgm_id = int(bgm_id_match.group(0))
     bgm_name = get_music_info(bgm_id)
     if bgm_name == "":
         return file_name

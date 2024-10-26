@@ -12,30 +12,37 @@ def download(base: str, files: list[str]):
             with open("json/" + f_name, "w", encoding="utf-8") as out_file:
                 out_file.write(text)
                 print(f"Updated {f_name}")
+        else:
+            print(f"Skipped {f}")
 
 
 def data_download():
-    files = ["LocalizeScenarioExcelTable.json",
-            "ScenarioCharacterNameExcelTable.json",
-            "AcademyFavorScheduleExcelTable.json",
-            "ScenarioBGNameExcelTable.json",
-            "BGMExcelTable.json",
-            "ScenarioModeExcelTable.json",
-            "LocalizeCharProfileExcelTable.json",
-            "CampaignStageExcelTable.json",
-            "MissionExcelTable.json",
-            "CampaignStageRewardExcelTable.json"]
-    files.extend(["ScenarioScriptFavor{}ExcelTable.json".format(i) for i in range (1, 10)])
-    files.extend(["ScenarioScriptEvent{}ExcelTable.json".format(i) for i in range (1, 10)])
-    files.extend(["ScenarioScriptMain{}ExcelTable.json".format(i) for i in range (1, 10)])
+    files = ["AcademyFavorScheduleExcelTable.json",
+             "CampaignStageExcelTable.json",
+             "MissionExcelTable.json",
+             "CampaignStageRewardExcelTable.json"]
     files.extend(["AcademyMessanger{}ExcelTable.json".format(i) for i in range(1, 10)])
     download("https://raw.githubusercontent.com/electricgoat/ba-data/global/Excel/", files)
+
+
+def db_download():
+    files = ["ScenarioBGNameExcelTable.json",
+             "ScenarioBGName_GlobalExcelTable.json",
+             "BGMExcelTable.json",
+             "LocalizeExcelTable.json",
+             "ScenarioCharacterNameExcelTable.json",
+             "ScenarioModeExcelTable.json",
+             ]
+    files.extend(["ScenarioScriptExcelTable{}.json".format(i) for i in range(1, 5)])
+    download("https://raw.githubusercontent.com/electricgoat/ba-data/global/DB/", files)
 
 
 def wiki_repo_download():
     files = ["translation/" + s for s in ["LocalizeCharProfile.json", "devname_map.json", "devname_map_aux.json"]]
     download("https://raw.githubusercontent.com/electricgoat/bluearchivewiki/master/", files)
 
+
 Path("json").mkdir(exist_ok=True)
 data_download()
+db_download()
 wiki_repo_download()
