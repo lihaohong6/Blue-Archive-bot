@@ -3,22 +3,26 @@ import sys
 from dataclasses import dataclass
 
 from pywikibot import Page
-from story.story_parser import StoryType, make_story, make_relationship_story_pages
+from pywikibot.pagegenerators import PreloadingGenerator
+
+from story.story_parser import StoryType, make_story, make_relationship_story_pages, StoryInfo
 
 from utils import get_character_table, load_favor_schedule, \
     save_json_page
 from story.story_utils import get_main_scenarios, make_categories, \
-    get_main_event, s
+    get_main_event, s, get_story_title_and_summary
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 
-def make_main_scenario_text(event: dict) -> str | None:
+def make_main_scenario_text(event: dict) -> StoryInfo | None:
     ids = event["FrontScenarioGroupId"] + event["BackScenarioGroupId"]
     event_lines = []
     for event_id in ids:
         lines = get_main_event(event_id)
         if lines is not None:
+            if len(event_lines) > 0:
+                event_lines.append({"Battle": True})
             event_lines.extend(lines)
     if len(event_lines) == 0:
         return None
@@ -27,7 +31,8 @@ def make_main_scenario_text(event: dict) -> str | None:
               story.text,
               "{{Story/StoryBottom}}",
               make_categories(["Main story episodes"], story.chars, story.music)]
-    return "\n".join(result)
+    story.text = "\n".join(result)
+    return story
 
 
 @dataclass
@@ -69,7 +74,9 @@ def generate_parent_page(all_episodes: EpisodeDict):
         for chapter in all_episodes[volume]:
             result.append(f"==Chapter {chapter}==")
             for episode, story in all_episodes[volume][chapter].items():
-                result.append(f"*[[{story.page}|Episode {story.episode}]]")
+                result.append(f";[[{story.page}|Episode {story.episode}: {story.title}]]")
+                summary = get_story_title_and_summary(story.title)[1]
+                result.append(summary)
         string = "\n".join(result)
         if page.text != string:
             page.text = string
@@ -80,21 +87,47 @@ def make_main_story():
     scenarios = get_main_scenarios()
     all_episodes: EpisodeDict = {}
     id_to_story: dict[int, Story] = {}
+    id_to_story_info: dict[int, StoryInfo] = {}
+
     for scenario in scenarios:
         story_id = scenario['FrontScenarioGroupId'][0]
         volume = scenario['VolumeId']
         chapter = scenario['ChapterId']
         episode = scenario['EpisodeId']
+        story_info = make_main_scenario_text(scenario)
+        if story_info is None:
+            print(make_main_story_title(volume, chapter, episode) + " cannot be found")
+            continue
+        id_to_story_info[story_id] = story_info
         if volume not in all_episodes:
             all_episodes[volume] = {}
         if chapter not in all_episodes[volume]:
             all_episodes[volume][chapter] = {}
         page_title = make_main_story_title(volume, chapter, episode)
-        story = Story(story_id, "", page_title, volume, chapter, episode)
+        story = Story(story_id, story_info.title, page_title, volume, chapter, episode)
         id_to_story[story_id] = story
         assert episode not in all_episodes[volume][chapter], "Duplicate episode"
         all_episodes[volume][chapter][episode] = story
 
+    # make_nav(all_episodes, id_to_story)
+    #
+    # generate_parent_page(all_episodes)
+
+    gen = PreloadingGenerator(Page(s, story.page) for story in id_to_story.values())
+    title_to_page: dict[str, Page] = dict((page.title(), page) for page in gen)
+
+    for story_id, story in id_to_story.items():
+        story_info = id_to_story_info.get(story_id, None)
+        if story_info is None:
+            print(make_main_story_title(story.volume, story.chapter, story.episode) + " cannot be found")
+            continue
+        page = title_to_page[story.page]
+        if page.text.strip() != story_info.text:
+            page.text = story_info.text
+            page.save(summary="batch create experimental main story pages")
+
+
+def make_nav(all_episodes, id_to_story):
     generate_nav(all_episodes, id_to_story)
     json_obj = {}
     for story in id_to_story.values():
@@ -107,20 +140,6 @@ def make_main_story():
             'next_title': next_story.title if next_story else '',
         }
     save_json_page("Module:Story/navigation.json", json_obj)
-
-    generate_parent_page(all_episodes)
-
-    for scenario in scenarios:
-        story_id = scenario['FrontScenarioGroupId'][0]
-        story = id_to_story[story_id]
-        text = make_main_scenario_text(scenario)
-        if text is None:
-            print(make_main_story_title(story.volume, story.chapter, story.episode) + " cannot be found")
-            continue
-        page = Page(s, story.page)
-        if page.text.strip() != text:
-            page.text = text
-            page.save(summary="batch create experimental main story pages")
 
 
 def generate_nav(all_episodes, id_to_story: dict[int, Story]):

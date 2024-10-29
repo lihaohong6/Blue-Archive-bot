@@ -81,27 +81,47 @@ def get_main_scenarios() -> list[dict]:
         return [row for row in result if row['ModeType'] == "Main"]
 
 
-def get_story_title_and_summary(localization_id: int) -> tuple[str, str]:
+def get_story_title_and_summary(query: int | str) -> tuple[str, str]:
     """
     This file is organized in a way that summary immediately follows the title, so we can take advantage
     of this by recording the index of each json entry.
     """
 
-    def process(loaded: dict) -> tuple[list, dict]:
+    def process(loaded: dict) -> tuple[list, dict, dict]:
         loaded = loaded['DataList']
         localization_list: list[str] = []
         localization_dict: dict[int, int] = {}
+        en_to_index: dict[str, list[int]] = {}
         for index, row in enumerate(loaded):
             row_id = row['Key']
             row_text = row['En']
             localization_list.append(row_text)
             localization_dict[row_id] = index
-        return localization_list, localization_dict
+            def add_to_dict(text: str):
+                if text not in en_to_index:
+                    en_to_index[text] = []
+                en_to_index[text].append(index)
+            add_to_dict(row_text)
+            row_text_changed = re.sub(r" +[12]$", "", row_text)
+            if row_text_changed != row_text:
+                add_to_dict(row_text_changed)
+            if "Part" in row_text:
+                add_to_dict(row_text.replace("Part ", ""))
+        return localization_list, localization_dict, en_to_index
 
-    lst, d = load_json("LocalizeExcelTable.json", process)
+    lst, id_to_index, en_to_index = load_json("LocalizeExcelTable.json", process)
 
-    index = d[localization_id]
-    return lst[index], lst[index + 1]
+    if isinstance(query, int):
+        index = id_to_index[query]
+        return lst[index], lst[index + 1]
+    else:
+        indices: list[int] | None = en_to_index.get(query, None)
+        if indices is None or len(indices) > 3:
+            return query, ""
+        summaries = []
+        for index in indices[1:]:
+            summaries.append(lst[index + 1])
+        return query, " ".join(summaries)
 
 
 def make_nav_span(event: dict) -> str:

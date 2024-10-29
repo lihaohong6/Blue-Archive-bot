@@ -2,6 +2,7 @@ import dataclasses
 import pickle
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -131,10 +132,21 @@ def get_background_file_name(background_id: int) -> str | None:
     return background_file_name.get(background_id, None)
 
 
-bgm_file_info: dict[int, tuple[str, list[float]]] = {}
+@dataclass
+class BGMInfo:
+    id: int
+    name: str
+    loop_start: float
+    loop_end: float
+    volume: float
+    transition_time: float
+    offset_time: float
 
 
-def get_bgm_file_info(query_id: int) -> tuple[str, list[float]]:
+bgm_file_info: dict[int, BGMInfo] = {}
+
+
+def get_bgm_file_info(query_id: int) -> BGMInfo:
     def list_or_none(l: list) -> str | None:
         if len(l) == 0:
             return None
@@ -145,13 +157,15 @@ def get_bgm_file_info(query_id: int) -> tuple[str, list[float]]:
         loaded = loaded['DataList']
         for row in loaded:
             bgm_id = row['Id']
-            bgm_name: str = list_or_none(row['Path'])
+            bgm_name: str = list_or_none(row['Path']).split("/")[-1]
             loop_start = list_or_none(row['LoopStartTime'])
             loop_end = list_or_none(row['LoopEndTime'])
             volume = list_or_none(row['Volume'])
             transition_time = list_or_none(row['LoopTranstionTime'])
             offset_time = list_or_none(row['LoopOffsetTime'])
-            bgm_file_info[bgm_id] = (bgm_name.split("/")[-1], [loop_start, loop_end, volume, transition_time, offset_time])
+            info_list = [loop_start, loop_end, volume, transition_time, offset_time]
+            info_list = [None if x is None else float(x) for x in info_list]
+            bgm_file_info[bgm_id] = BGMInfo(bgm_id, bgm_name, *info_list)
     if query_id in bgm_file_info:
         return bgm_file_info[query_id]
     raise RuntimeError(f"Bgm with id {query_id} not found.")
