@@ -3,10 +3,35 @@ import re
 from pathlib import Path
 
 from pywikibot import Site
+from pywikibot.pagegenerators import GeneratorFactory
+from torch.fx.passes.pass_manager import logger
 
 from utils import scenario_character_name, dev_name_to_canonical_name, load_json, load_json_list
 
 s = Site()
+sprites_cache = {}
+
+def get_existing_sprites() -> dict[str, list[str]]:
+    if len(sprites_cache) > 0:
+        return sprites_cache
+    result_file = Path("cache/sprites.json")
+    if not result_file.exists():
+        gen = GeneratorFactory(s)
+        gen.handle_args(['-cat:Character sprites', '-cat:Character sprite redirects', '-ns:File'])
+        gen = gen.getCombinedGenerator()
+        result: dict[str, list[str]] = {}
+        for p in gen:
+            title = p.title(with_ns=False, underscore=False)
+            name, num = re.search(r"^(.*)[ _](\d\d)\.png", title).groups()
+            if name not in result:
+                result[name] = []
+            result[name].append(num)
+        json.dump(result, open(result_file, "w", encoding="utf-8"), ensure_ascii=False, indent=4)
+    sprites_cache.update(json.load(open(result_file, "r", encoding="utf-8")))
+    return sprites_cache
+
+reported_missing_spines: set[str] = set()
+
 
 def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, str, str, str]], int]:
     from xxhash import xxh32
@@ -46,7 +71,7 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
             if hashed in scenario_character_name:
                 break
         else:
-            print(f"Cannot find scenario character name in table. Text: {name_ko}. Hash: {hashed}.")
+            logger.warning(f"Cannot find scenario character name in table. Text: {name_ko}. Hash: {hashed}.")
             continue
         row = scenario_character_name[hashed]
         name = row['NameEN']
@@ -66,8 +91,25 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
         if na:
             spine, portrait = '', ''
 
-        # check if there is text after the last semicolon; if so, this is the speaker
+        # Sometimes spine does not agree with portrait. In that case, use spine unless spine is empty but portrait
+        # is not.
+        if spine != portrait and spine.strip() == '' and portrait != '':
+            spine = portrait
+        existing_sprites = get_existing_sprites()
+        if spine != "" and spine not in existing_sprites:
+            if (spine + " diorama") in existing_sprites:
+                spine += " diorama"
+            else:
+                if spine not in reported_missing_spines:
+                    logger.warning(f"Spine {spine} not found")
+                    reported_missing_spines.add(spine)
+        if spine in existing_sprites and expression_number not in existing_sprites[spine]:
+            repl = existing_sprites[spine][0]
+            logger.debug(f"{spine}_{expression_number} does not exist. Replacing with {repl}.")
+            expression_number = repl
+
         obj = (name, nickname, spine, portrait, expression_number)
+        # check if there is text after the last semicolon; if so, this is the speaker
         if re.search(r"^\d+;([^;]+);(\d+);.", original) is not None or na:
             speaker = obj
         result.append(obj)

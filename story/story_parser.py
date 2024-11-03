@@ -4,6 +4,7 @@ from enum import Enum
 
 from pywikibot import Page
 
+from story.log_utils import logger
 from story.story_utils import strip_st_line, get_story_title_and_summary, get_favor_event, make_categories, s
 from utils import get_bgm_file_info, music_file_name_to_title, get_background_file_name
 
@@ -48,6 +49,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
     counter = 0
     hanging_bgm = False
     current_background = None
+    current_popup = None
     onscreen_characters = set()
     live2d_mode = False
     story_title = None
@@ -63,7 +65,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
         if line['BGName'] != 0:
             file_name = get_background_file_name(line['BGName'])
             if file_name is None:
-                print(f"Background image not found for {line['BGName']}")
+                logger.warning(f"Background image not found for {line['BGName']}")
             else:
                 # in some places (e.g. L2D) the same file name gets repeated multiple times
                 if "SpineBG_Lobby" in file_name and story_type == StoryType.RELATIONSHIP:
@@ -75,6 +77,13 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
                     counter += 1
                     result.append(f"|{counter}=background\n|background{counter}={file_name}")
                     current_background = file_name
+
+        if line['PopupFileName'] != "":
+            popup_name = line['PopupFileName']
+            if popup_name != current_popup:
+                counter += 1
+                result.append(f"|{counter}=popup\n|popup{counter}={popup_name}")
+                current_popup = popup_name
 
         script: str = line['ScriptKr']
         lower: str = script.lower()
@@ -192,7 +201,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
                     if live2d_mode:
                         name, nickname, spine, portrait, sequence = character_name, "", "", "", None
                     else:
-                        print(f"Line with no speaker: {script}")
+                        logger.error(f"Line with no speaker: {script}")
                         raise RuntimeError()
                 else:
                     name, nickname, spine, portrait, sequence = speaker
