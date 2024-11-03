@@ -28,6 +28,16 @@ st_regex = re.compile(r"#st;\[-?\d+,-?\d+];(serial|instant);\d+;")
 option_group: int = 0
 
 
+def process_info(text) -> str:
+    text, _ = re.subn(r"^\[ns] *", "", text)
+    text, _ = re.subn(r'\[b](.*)\[/b]', r'<span style="font-weight: bolder">\1</span>', text)
+    # [7cd0ff]Make-Up Work Club[-]
+    text, _ = re.subn(r'\[([0-9a-zA-Z]{6})]([^[]*)\[-]', r'<span style="color:#\1">\2</span>', text)
+    # [7cd0ff]Make-Up Work Club<br/>
+    text, _ = re.subn(r'\[([0-9a-zA-Z]{6})]([^[]*)(?=($|<br|\[\1]))', r'<span style="color:#\1">\2</span>', text)
+    return text
+
+
 def make_story(lines: list[dict], story_type: StoryType, character_name: str = None) -> StoryInfo:
     bgm_list: set[str] = set()
     character_list: set[str] = set()
@@ -72,6 +82,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
         # don't deal with emoticon for now
         # text = text + "".join(extract_em(script))
         text = text.replace("#n", "<br/>")
+        text, _ = re.subn(r"\[wa:\d+]", "", text)
         sound: str = line['Sound']
         selection_group: int = line['SelectionGroup']
         if selection_group != 0:
@@ -97,7 +108,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
 
         lower = lower.strip()
         if is_st_line:
-            match = re.search(r"\[log=([^\]]+)\]", text)
+            match = re.search(r"\[log=([^]]+)]", text)
             if match is not None:
                 lower = f"3;{match.group(1)};00"
         character_query_result, speaker = get_scenario_character_id(script)
@@ -128,11 +139,13 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
         elif lower.startswith("#na;("):
             make_group_and_option_string()
             counter += 1
+            text = process_info(text)
             result.append(f"|{counter}=info\n|text{counter}={text}{group_and_option_string}")
             # TODO: deal with na issues
         elif lower.startswith("#na;") and (len(character_query_result) == 0 or character_query_result[0][0] is None):
             make_group_and_option_string()
             counter += 1
+            text = process_info(text)
             result.append(f"|{counter}=info\n|text{counter}={text}{group_and_option_string}")
         elif lower.startswith("[s") or lower.startswith("[ns"):
             options = re.split(r"\[n?s\d*]", text)
@@ -196,6 +209,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
         elif text != "":
             make_group_and_option_string()
             counter += 1
+            text = process_info(text)
             result.append(f"|{counter}=info\n|text{counter}={text}{group_and_option_string}")
         else:
             pass

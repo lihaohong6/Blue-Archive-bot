@@ -153,9 +153,9 @@ def extract_em(string) -> list[str]:
 
 
 def strip_st_line(line: str) -> str:
-    line, _ = re.subn(r"\[log=[^\]]+\]", "", line)
+    line, _ = re.subn(r"\[log=[^]]+]", "", line)
     line = line.replace("[/log]", "")
-    line, _ = re.subn(r"\[wa:\d+\]", "", line)
+    line, _ = re.subn(r"\[wa:\d+]", "", line)
     return line
 
 
