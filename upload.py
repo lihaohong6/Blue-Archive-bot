@@ -1,12 +1,11 @@
-from pathlib import Path
 import re
+from pathlib import Path
+from typing import Callable
+
 import pywikibot as pwb
 from pywikibot.page import FilePage
-from pywikibot.site import APISite
-from pywikibot.specialbots import UploadRobot
 from pywikibot.pagegenerators import PreloadingGenerator
-
-from utils import normalize_char_name
+from pywikibot.site import APISite
 
 s: APISite = pwb.Site()
 s.login()
@@ -51,27 +50,22 @@ def upload_cut_scenes():
 
 def upload_files(extensions: tuple[str, ...],
                  text: str,
-                 comment: str,
-                 redirect: bool):
+                 comment: str = "Batch upload files",
+                 redirect: bool = False,
+                 file_name_filter: Callable[[str], bool] = lambda f: True,
+                 name_mapper: Callable[[str], str] = lambda f: f):
     already_exist = set()
-
-    def name_mapper(original: str, with_file: bool = True) -> str:
-        prefix = ""
-        if with_file:
-            prefix = "File:"
-        return prefix + original
-        return prefix + "Memorial Lobby " + original
 
     def get_all_files():
         result = []
         for e in extensions:
-            result.extend(path.glob(f"*.{e}"))
-        return result
+            result.extend(path.rglob(f"*.{e}"))
+        return [f for f in result if file_name_filter(f.name)]
 
     file_list = get_all_files()
     print(f"{len(file_list)} files found")
 
-    gen = (FilePage(s, name_mapper(f.name)) for f in file_list)
+    gen = (FilePage(s, "File:" + name_mapper(f.name)) for f in file_list)
     preload = PreloadingGenerator(generator=gen)
     exists_count = 0
     for p in preload:
@@ -82,10 +76,10 @@ def upload_files(extensions: tuple[str, ...],
             exists_count += 1
     print(exists_count, "files already exist")
     for f in file_list:
-        if name_mapper(f.name, with_file=False) in already_exist:
+        if name_mapper(f.name) in already_exist:
             continue
         try:
-            s.upload(FilePage(s, name_mapper(f.name)), source_filename=str(f), comment=comment,
+            s.upload(FilePage(s, "File:" + name_mapper(f.name)), source_filename=str(f), comment=comment,
                      text=text)
         except Exception as e:
             if not redirect:
@@ -93,7 +87,7 @@ def upload_files(extensions: tuple[str, ...],
             error_string = str(e)
             search = re.search(r"duplicate of \['([^']+)'", error_string)
             if search is not None:
-                p = FilePage(s, name_mapper(f.name))
+                p = FilePage(s, "File:" + name_mapper(f.name))
                 p.text = f"#REDIRECT [[File:{search.group(1)}]]"
                 p.save(summary="Redirect to existing file")
             else:
@@ -107,6 +101,31 @@ def upload_bgm():
                  redirect=True)
 
 
+def normalize_png(file_name: str) -> str:
+    o, _ = re.subn(r"\.png", ".png", file_name, re.IGNORECASE)
+    return o
+
+
+def upload_momotalk_images():
+    upload_files(("png", ),
+                 text="[[Category:MomoTalk images]]",
+                 file_name_filter=lambda f: f.startswith("Mo"),
+                 name_mapper=normalize_png)
+
+
+def upload_story_popups():
+    upload_files(("png", ),
+                 text="[[Category:Story popup images]]",
+                 file_name_filter=lambda f: f.startswith("popup"),
+                 name_mapper=normalize_png)
+
+
+def upload_sound_effects():
+    upload_files(("wav", ),
+                 text="[[Category:Sound effects]]",
+                 file_name_filter=lambda f: f.startswith("SE"),)
+
+
 def rename_files():
     files = path.glob("*.png")
     for f in files:
@@ -114,4 +133,9 @@ def rename_files():
         f.rename(path.joinpath(f"Fankit {fname}"))
 
 
-upload_bgm()
+def main():
+    upload_sound_effects()
+
+
+if __name__ == "__main__":
+    main()
