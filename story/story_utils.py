@@ -46,7 +46,8 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
             scenario_character_name[cid] = row
     # search_text = re.search(r"^\d+;([^;a-zA-Z]+) ?([a-zA-Z]+)?;\d+;?", text_ko)
     for original in text_ko_original.split("\n"):
-        search_text = re.search(r"^\d+;([^;]+);(\d+);?", original)
+        # deal with cases such as 3;사키;S2_11
+        search_text = re.search(r"^\d+;([^;]+);([S_\d]+);?", original)
         if search_text is not None:
             name_ko = search_text.group(1)
             expression_number = search_text.group(2)
@@ -103,6 +104,14 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
                 if spine not in reported_missing_spines:
                     logger.warning(f"Spine {spine} not found")
                     reported_missing_spines.add(spine)
+
+        # deal with cases such as 3;사키;S2_11
+        if expression_number is not None and "S" in expression_number:
+            match = re.search(r"(S\d)_(\d\d)", expression_number)
+            assert match is not None
+            spine_suffix, expression_number = match.groups()
+            spine += " " + spine_suffix
+
         if spine in existing_sprites and expression_number not in existing_sprites[spine]:
             repl = existing_sprites[spine][0]
             logger.debug(f"{spine}_{expression_number} does not exist. Replacing with {repl}.")
@@ -110,7 +119,7 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
 
         obj = (name, nickname, spine, portrait, expression_number)
         # check if there is text after the last semicolon; if so, this is the speaker
-        if re.search(r"^\d+;([^;]+);(\d+);.", original) is not None or na:
+        if re.search(r"^\d+;([^;]+);([S_\d]+);.", original) is not None or na:
             speaker = obj
         result.append(obj)
     return result, speaker

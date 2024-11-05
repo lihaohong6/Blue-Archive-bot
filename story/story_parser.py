@@ -92,6 +92,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
         # text = text + "".join(extract_em(script))
         text = text.replace("#n", "<br/>")
         text, _ = re.subn(r"\[wa:\d+]", "", text)
+        text = text.strip()
         sound: str = line['Sound']
         selection_group: int = line['SelectionGroup']
         if selection_group != 0:
