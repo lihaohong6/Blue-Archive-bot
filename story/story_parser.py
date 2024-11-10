@@ -4,7 +4,7 @@ from enum import Enum
 
 from story.log_utils import logger
 from story.story_utils import strip_st_line, get_story_event, make_categories
-from utils import get_bgm_file_info, music_file_name_to_title, get_background_file_name
+from utils import get_bgm_file_info, music_file_name_to_title, get_background_file_name, signature_escape
 
 
 class StoryType(Enum):
@@ -99,6 +99,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
         # text = text + "".join(extract_em(script))
         text = text.replace("#n", "<br/>")
         text, _ = re.subn(r"\[wa:\d+]", "", text)
+        text = signature_escape(text)
         text = text.strip()
         sound: str = line['Sound']
         selection_group: int = line['SelectionGroup']

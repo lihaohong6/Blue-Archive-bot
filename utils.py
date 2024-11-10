@@ -224,5 +224,10 @@ def save_json_page(page: Page | str, obj, summary: str = "update json page"):
         page.save(summary=summary)
 
 
+def signature_escape(original: str) -> str:
+    res, _ = re.subn(r"~~(?=~)", "~~&#x200B;", original)
+    return res
+
+
 if __name__ == "__main__":
     raise NotImplementedError("Do not run this script directly.")
