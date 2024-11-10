@@ -107,7 +107,7 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
 
         # deal with cases such as 3;사키;S2_11
         if expression_number is not None and "S" in expression_number:
-            match = re.search(r"(S\d)_(\d\d)", expression_number)
+            match = re.search(r"(S\d?)_(\d\d)", expression_number)
             assert match is not None
             spine_suffix, expression_number = match.groups()
             spine += " " + spine_suffix
@@ -239,11 +239,6 @@ def get_events(pattern: str) -> dict:
     return e
 
 
-def get_favor_event(query_group_id: int) -> list[dict]:
-    e = get_events("ScenarioScriptFavor{0}ExcelTable.json")
-    return e[query_group_id]
-
-
-def get_main_event(query_group_id: int) -> list[dict] | None:
+def get_story_event(query_group_id: int) -> list[dict]:
     e = get_events("ScenarioScriptExcelTable{0}.json")
-    return e.get(query_group_id)
+    return e[query_group_id]

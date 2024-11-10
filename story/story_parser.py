@@ -2,10 +2,8 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from pywikibot import Page
-
 from story.log_utils import logger
-from story.story_utils import strip_st_line, get_story_title_and_summary, get_favor_event, make_categories, s
+from story.story_utils import strip_st_line, get_story_event, make_categories
 from utils import get_bgm_file_info, music_file_name_to_title, get_background_file_name
 
 
@@ -14,6 +12,15 @@ class StoryType(Enum):
     MAIN = 1
     SIDE = 2
     GROUP = 3
+
+
+def story_type_to_cat(story_type: StoryType):
+    return {
+        StoryType.RELATIONSHIP: "Relationship story episodes",
+        StoryType.MAIN: "Main story episodes",
+        StoryType.SIDE: "Side story episodes",
+        StoryType.GROUP: "Group story episodes"
+    }.get(story_type)
 
 
 @dataclass
@@ -102,7 +109,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             else:
                 selection_group = selection_group - base_selection_group + 1
         if lower.startswith("#title;"):
-            story_title = text.split(";")[1].strip()
+            story_title = text.split(";")[1].strip() if ";" in text else text.strip()
             result.append(f"|title={story_title}")
             continue
         elif lower.startswith("#place;"):
@@ -285,29 +292,31 @@ def process_special_effects(counter: int, lower: str, result: list[str]):
     return counter, is_st_line, lower
 
 
-def make_relationship_story_pages(event_list: list[dict], char_name: str):
-    global option_group
-    base_page = Page(s, f"{char_name}/Relationship Story")
-    base_text = ["{{Story/RelationshipStoryTop}}"]
-    for event in event_list:
-        localization_id = event["LocalizeScenarioId"]
-        event_name, event_summary = get_story_title_and_summary(localization_id)
-        episode_result = ["{{Story/RelationshipStoryEpisodeTop|" +
-                          f"title={event_name}|summary={event_summary}" +
-                          "}}"]
-        lines = get_favor_event(event['ScenarioSriptGroupId'])
-        option_group = 0
-        story = make_story(lines, StoryType.RELATIONSHIP, character_name=char_name)
-        episode_result.append(f"==Story==\n"
-                              f"{story.text}")
-        episode_result.append(make_categories(['Relationship story episodes'], story.chars, story.music))
-        sub_page = Page(s, base_page.title() + f"/{event_name}")
-        setattr(sub_page, "_bot_may_edit", True)
-        sub_page.text = "\n".join(episode_result)
-        sub_page.save(summary="batch create relation story episodes")
-        base_text.append(f"=={event_name}==")
-        base_text.append(f"[[/{event_name}|Full story]]")
-        base_text.append(event_summary)
-    base_text.append("[[Category:Relationship stories]]")
-    base_page.text = "\n\n".join(base_text)
-    base_page.save(summary="batch create relationship story pages")
+STORY_TOP = "{{Story/StoryTop}}"
+STORY_BOTTOM = "{{Story/StoryBottom}}"
+
+
+def make_story_text(event_ids: int | list[int], story_type: StoryType, cat: str | list[str] | None = None,
+                    character_name: str | None = None) -> StoryInfo | None:
+    if cat is None:
+        cat = story_type_to_cat(story_type)
+    if isinstance(cat, str):
+        cat = [cat]
+    if isinstance(event_ids, int):
+        event_ids = [event_ids]
+    event_lines = []
+    for event_id in event_ids:
+        lines = get_story_event(event_id)
+        if lines is not None:
+            if len(event_lines) > 0:
+                event_lines.append({"Battle": True})
+            event_lines.extend(lines)
+    if len(event_lines) == 0:
+        return None
+    story = make_story(event_lines, story_type, character_name=character_name)
+    result = [STORY_TOP,
+              story.text,
+              STORY_BOTTOM,
+              make_categories(cat, story.chars, story.music)]
+    story.text = "\n".join(result)
+    return story
