@@ -239,6 +239,6 @@ def get_events(pattern: str) -> dict:
     return e
 
 
-def get_story_event(query_group_id: int) -> list[dict]:
+def get_story_event(query_group_id: int) -> list[dict] | None:
     e = get_events("ScenarioScriptExcelTable{0}.json")
-    return e[query_group_id]
+    return e.get(query_group_id, None)

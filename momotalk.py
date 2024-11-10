@@ -124,7 +124,7 @@ def make_conversation(conversation: list[dict], char_name: str,
         if c['FavorScheduleId'] != 0 and group_id not in no_favor_schedule and c['FavorScheduleId'] != c['PreConditionFavorScheduleId']:
             counter += 1
             line += f"\n|{counter}=relationship\n|name{counter}={char_name}\n"
-            line += f"|favor{counter}={unlock_favor}\n"
+            line += f"|favor{counter}={unlock_favor}\n|sequence{counter}={conversation_counter}\n"
             relationship_event_found += 1
             assert relationship_event_found == 1, f"For {char_name}: relationship event should occur exactly once; occurred {relationship_event_found} time(s) instead. Last group id: {group_id}"
         result.append(line)
