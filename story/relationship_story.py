@@ -111,7 +111,9 @@ def make_relationship_stories():
             page_title = story.page(char_name)
             assert page_title in title_to_page, f"{story.page} is not in cached page list"
             page: Page = title_to_page[page_title]
-            if page.text.strip() != story.text:
+            # FIXME: Every page would be touched otherwise. This is not ideal. We would need to update all stories
+            #  at some point
+            if page.text == "":
                 page.text = story.text
                 page.save("batch generate relationship story pages")
         page = title_to_page[char_stories.page]

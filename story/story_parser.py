@@ -33,8 +33,6 @@ class StoryInfo:
 
 zmc_regex = re.compile(r"#zmc;(instant|move);-?\d+,-?\d+;\d+(;\d+)?")
 st_regex = re.compile(r"#st;\[-?\d+,-?\d+];(serial|instant);\d+;")
-option_group: int = 0
-
 
 def process_info(text) -> str:
     text, _ = re.subn(r"^\[ns] *", "", text)
@@ -49,11 +47,11 @@ def process_info(text) -> str:
 def make_story(lines: list[dict], story_type: StoryType, character_name: str = None) -> StoryInfo:
     bgm_list: set[str] = set()
     character_list: set[str] = set()
-    global option_group
-    base_selection_group = -1
     from story.story_utils import get_scenario_character_id
     result = ["{{Story"]
     counter = 0
+    option_group = 0
+    base_selection_group = -1
     hanging_bgm = False
     current_background = None
     current_popup = None
@@ -165,7 +163,7 @@ def make_story(lines: list[dict], story_type: StoryType, character_name: str = N
             counter += 1
             text = process_info(text)
             result.append(f"|{counter}=info\n|text{counter}={text}{group_and_option_string}")
-        elif lower.startswith("[s") or lower.startswith("[ns"):
+        elif re.search(r"\[n?s\d*]", text) is not None:
             options = re.split(r"\[n?s\d*]", text)
             options = options[1:]
             options = [o.strip() for o in options]
