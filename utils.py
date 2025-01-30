@@ -8,7 +8,7 @@ from typing import Any
 
 from pywikibot import Page, Site
 from pywikibot.pagegenerators import GeneratorFactory
-from wikitextparser import parse
+from wikitextparser import parse, WikiText, Template
 
 import json
 
@@ -227,6 +227,13 @@ def save_json_page(page: Page | str, obj, summary: str = "update json page"):
 def signature_escape(original: str) -> str:
     res, _ = re.subn(r"~~(?=~)", "~~&#x200B;", original)
     return res
+
+
+def find_template(w: WikiText, name: str) -> Template | None:
+    for t in w.templates:
+        if t.name.strip().replace(" ", "_").lower() == name.replace(" ", '_').lower():
+            return t
+    return None
 
 
 if __name__ == "__main__":
