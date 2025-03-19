@@ -17,9 +17,9 @@ def upload_cut_scenes():
 
     def glob() -> list[Path]:
         def name_filter(f: str) -> bool:
-            return re.search(r"_(Kr|kr|Tw|tw|Th|th)\.jpg", f) is None
+            return re.search(r"_(kr|tw|th)\.jpg", f, re.IGNORECASE) is None
 
-        return [f for f in image_path.glob("*.jpg") if name_filter(f.name)]
+        return [f for f in image_path.rglob("*.jpg") if name_filter(f.name)]
 
     already_exist = set()
     gen = (FilePage(s, "File:" + f.name) for f in glob())
@@ -134,7 +134,7 @@ def rename_files():
 
 
 def main():
-    upload_sound_effects()
+    upload_cut_scenes()
 
 
 if __name__ == "__main__":
