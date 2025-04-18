@@ -151,3 +151,11 @@ def generate_nav(all_episodes, id_to_story: dict[int, MainStory]):
     for story in id_to_story.values():
         story.next_story = get_next_episode(story.id)
         story.previous_story = get_previous_episode(story.id)
+
+
+def main():
+    make_main_story()
+
+
+if __name__ == "__main__":
+    main()

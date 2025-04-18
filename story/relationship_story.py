@@ -83,8 +83,10 @@ def parse_all_relationship_story_pages():
                     'prev_title': prev_story.title,
                     'prev_page': prev_story.page(character_story.char_name)
                 })
+
             def make_args() -> str:
                 return " | ".join(f"{k}={v}" for k, v in args.items())
+
             nav_string = make_args()
             args = {
                 'title': story.title,
@@ -120,3 +122,11 @@ def make_relationship_stories():
         if page.text.strip() != char_stories.text:
             page.text = char_stories.text
             page.save("batch generate relationship story pages")
+
+
+def main():
+    make_relationship_stories()
+
+
+if __name__ == "__main__":
+    main()
