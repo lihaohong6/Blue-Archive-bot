@@ -94,8 +94,6 @@ def make_main_story():
     title_to_page: dict[str, Page] = dict((page.title(), page) for page in gen)
 
     for story_id, story in id_to_story.items():
-        if story.volume != 0:
-            continue
         story_info = id_to_story_info.get(story_id, None)
         if story_info is None:
             print(make_main_story_title(story.volume, story.chapter, story.episode) + " cannot be found")

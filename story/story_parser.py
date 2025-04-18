@@ -122,9 +122,11 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
         is_st_line, lower = process_special_effects(lower, events)
 
         lower = lower.strip()
+        # Search for strings like "[log=렌게 실루엣]I'm on an adventure to reclaim my youth![/log]"
         match = re.search(r"\[log=([^]]+)]", text)
         if match is not None:
-            lower = f"3;{match.group(1)};00"
+            script = f"3;{match.group(1)};00;lorem ipsum"
+            text = re.sub(r"\[/?log=([^]]+)]", "", text)
 
         character_query_result, speaker = get_scenario_character_id(script)
 
