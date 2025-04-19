@@ -16,11 +16,12 @@ def download(base: str, files: list[str]):
             print(f"Skipped {f}")
 
 
-def data_download():
+def excel_download():
     files = ["AcademyFavorScheduleExcelTable.json",
              "CampaignStageExcelTable.json",
              "MissionExcelTable.json",
-             "CampaignStageRewardExcelTable.json"]
+             "CampaignStageRewardExcelTable.json",
+             "EventContentScenarioExcelTable.json"]
     files.extend(["AcademyMessanger{}ExcelTable.json".format(i) for i in range(1, 10)])
     download("https://raw.githubusercontent.com/electricgoat/ba-data/global/Excel/", files)
 
@@ -43,6 +44,6 @@ def wiki_repo_download():
 
 
 Path("json").mkdir(exist_ok=True)
-data_download()
+excel_download()
 db_download()
 wiki_repo_download()

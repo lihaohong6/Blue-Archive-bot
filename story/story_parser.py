@@ -12,6 +12,7 @@ class StoryType(Enum):
     MAIN = 1
     SIDE = 2
     GROUP = 3
+    EVENT = 4
 
 
 def story_type_to_cat(story_type: StoryType):
@@ -19,7 +20,8 @@ def story_type_to_cat(story_type: StoryType):
         StoryType.RELATIONSHIP: "Relationship story episodes",
         StoryType.MAIN: "Main story episodes",
         StoryType.SIDE: "Side story episodes",
-        StoryType.GROUP: "Group story episodes"
+        StoryType.GROUP: "Group story episodes",
+        StoryType.EVENT: "Event story episodes",
     }.get(story_type)
 
 

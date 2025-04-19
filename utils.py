@@ -3,6 +3,7 @@ import pickle
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -19,9 +20,13 @@ s = Site()
 json_cache: dict[str | tuple[str, ...], Any] = {}
 
 
-def load_json[T](file_name: str, processor: Callable[[dict], T] = lambda x: x) -> T:
+def load_json[T](file_name: str, processor: Callable[[dict], T] = lambda x: x) -> T | None:
     if file_name not in json_cache:
-        json_cache[file_name] = processor(json.load(open("json/" + file_name, "r", encoding="utf-8")))
+        path = Path("json") / file_name
+        if not path.exists():
+            return None
+        with open(path, "r", encoding="utf-8") as f:
+            json_cache[file_name] = processor(json.load(f))
     return json_cache[file_name]
 
 
@@ -87,10 +92,9 @@ def dev_name_to_canonical_name(dev_name: str) -> str:
 def load_momotalk() -> dict[int, list[dict]]:
     result = {}
     for i in range(0, 10):
-        file_name = Path(f"json/AcademyMessanger{i}ExcelTable.json")
-        if not file_name.exists():
+        momotalk = load_json(f"AcademyMessanger{i}ExcelTable.json")
+        if momotalk is None:
             continue
-        momotalk = json.load(open(file_name, "r", encoding="utf-8"))
         if 'DataList' in momotalk:
             momotalk = momotalk['DataList']
         for talk in momotalk:
@@ -101,19 +105,17 @@ def load_momotalk() -> dict[int, list[dict]]:
     return result
 
 
-cached_favor_schedule = {}
-
-
+@cache
 def load_favor_schedule() -> dict[int, list[dict]]:
-    if len(cached_favor_schedule) == 0:
-        loaded = json.load(open("json/AcademyFavorScheduleExcelTable.json", "r", encoding="utf-8"))
-        loaded = loaded['DataList']
-        for row in loaded:
-            cid = row['CharacterId']
-            if cid not in cached_favor_schedule:
-                cached_favor_schedule[cid] = []
-            cached_favor_schedule[cid].append(row)
-    return cached_favor_schedule
+    favor_schedule = {}
+    loaded = load_json("AcademyFavorScheduleExcelTable.json")
+    loaded = loaded['DataList']
+    for row in loaded:
+        cid = row['CharacterId']
+        if cid not in favor_schedule:
+            favor_schedule[cid] = []
+        favor_schedule[cid].append(row)
+    return favor_schedule
 
 
 scenario_character_name: dict[int, dict] = {}
