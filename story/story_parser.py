@@ -43,6 +43,9 @@ def process_info(text) -> str:
     text, _ = re.subn(r'\[([0-9a-zA-Z]{6})]([^[]*)\[-]', r'<span style="color:#\1">\2</span>', text)
     # [7cd0ff]Make-Up Work Club<br/>
     text, _ = re.subn(r'\[([0-9a-zA-Z]{6})]([^[]*)(?=($|<br|\[\1]))', r'<span style="color:#\1">\2</span>', text)
+    if "></span>" in text:
+        # For empty spans, replace with ZWSP
+        text = text.replace("\"></span>", "\">&#8203;</span>")
     return text
 
 
