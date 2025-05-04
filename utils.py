@@ -238,5 +238,14 @@ def find_template(w: WikiText, name: str) -> Template | None:
     return None
 
 
+def save_page(page: Page | str, text: str, summary: str = "update page page"):
+    if isinstance(page, str):
+        page = Page(s, page)
+    if page.text.strip() == text.strip():
+        return
+    page.text = text
+    page.save(summary=summary)
+
+
 if __name__ == "__main__":
     raise NotImplementedError("Do not run this script directly.")

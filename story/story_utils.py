@@ -1,5 +1,6 @@
 import json
 import re
+from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from pywikibot import Site
@@ -242,3 +243,31 @@ def get_events(pattern: str) -> dict:
 def get_story_event(query_group_id: int) -> list[dict] | None:
     e = get_events("ScenarioScriptExcelTable{0}.json")
     return e.get(query_group_id, None)
+
+
+@dataclass
+class NavArgs:
+    prev_title: str = ""
+    prev_page: str = ""
+    next_title: str = ""
+    next_page: str = ""
+
+
+@dataclass
+class TitleArgs:
+    title: str = ""
+    summary: str = ""
+
+
+def make_custom_nav(nav_top: str,
+                    nav_bottom: str,
+                    nav_args: NavArgs,
+                    title_args: TitleArgs) -> tuple[str, str]:
+    def make_args(args: dict[str, str]) -> str:
+        return " | ".join(f"{k}={v}" for k, v in args.items() if v)
+
+    nav_string = make_args(asdict(nav_args))
+    title_string = make_args(asdict(title_args))
+    nav_top = nav_top.replace("}}", " | " + nav_string + " | " + title_string + " }}")
+    nav_bottom = nav_bottom.replace("}}", " | " + nav_string + " }}")
+    return nav_top, nav_bottom
