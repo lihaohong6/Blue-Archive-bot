@@ -9,12 +9,10 @@ from pywikibot.site import APISite
 
 s: APISite = pwb.Site()
 s.login()
-path = Path("./upload")
+upload_path = Path("./upload")
 
 
-def upload_cut_scenes():
-    image_path = Path(r"./upload")
-
+def upload_cut_scenes(image_path: Path) -> None:
     def glob() -> list[Path]:
         def name_filter(f: str) -> bool:
             return re.search(r"_(kr|tw|th)\.jpg", f, re.IGNORECASE) is None
@@ -49,11 +47,14 @@ def upload_cut_scenes():
 
 
 def upload_files(extensions: tuple[str, ...],
+                 path: Path,
                  text: str,
                  comment: str = "Batch upload files",
                  redirect: bool = False,
                  file_name_filter: Callable[[str], bool] = lambda f: True,
                  name_mapper: Callable[[str], str] = lambda f: f):
+    assert path.exists()
+
     already_exist = set()
 
     def get_all_files():
@@ -94,39 +95,61 @@ def upload_files(extensions: tuple[str, ...],
                 print(f.name, "\n", e)
 
 
-def upload_bgm():
+def upload_bgm(path: Path):
     upload_files(("ogg",),
+                 path=path,
                  text="[[Category:Background music]]",
                  comment="Batch upload bgm",
                  redirect=True)
 
 
 def normalize_png(file_name: str) -> str:
-    o, _ = re.subn(r"\.png", ".png", file_name, re.IGNORECASE)
+    o, _ = re.subn(r"\.png", ".png", file_name, flags=re.IGNORECASE)
+    o = o[0].upper() + o[1:]
     return o
 
 
-def upload_momotalk_images():
+def upload_momotalk_images(path: Path):
     upload_files(("png", ),
+                 path=path,
                  text="[[Category:MomoTalk images]]",
-                 file_name_filter=lambda f: f.startswith("Mo"),
+                 file_name_filter=lambda f: f.lower().startswith("mo"),
                  name_mapper=normalize_png)
 
 
-def upload_story_popups():
+def upload_story_popups(path: Path):
     upload_files(("png", ),
+                 path=path,
                  text="[[Category:Story popup images]]",
-                 file_name_filter=lambda f: f.startswith("popup"),
+                 file_name_filter=lambda f: f.lower().startswith("popup"),
                  name_mapper=normalize_png)
 
 
-def upload_sound_effects():
+def upload_sound_effects(path: Path):
     upload_files(("wav", ),
+                 path=path,
                  text="[[Category:Sound effects]]",
                  file_name_filter=lambda f: f.startswith("SE"),)
 
 
-def rename_files():
+def upload_story():
+    root = Path(r"D:\BA\ba-cdn\data_jp\cdn_data")
+    assert root.exists()
+    cur = max([subdir for subdir in root.iterdir() if subdir.is_dir()], key=lambda f: f.name)
+    assert cur.exists()
+    data = cur / "MediaResources" / "GameData"
+    assert data.exists()
+    ui_path = data / "UIs"
+    scenario_path = ui_path / "03_Scenario"
+    # upload_cut_scenes(scenario_path / "01_Background")
+    scenario_image_path = scenario_path / "04_ScenarioImage"
+    upload_momotalk_images(scenario_image_path)
+    upload_story_popups(scenario_image_path)
+    upload_bgm(data / "Audio" / "BGM")
+
+
+
+def rename_files(path: Path):
     files = path.glob("*.png")
     for f in files:
         fname = f.name
@@ -134,7 +157,7 @@ def rename_files():
 
 
 def main():
-    upload_cut_scenes()
+    upload_story()
 
 
 if __name__ == "__main__":

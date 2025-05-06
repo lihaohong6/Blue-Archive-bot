@@ -71,6 +71,8 @@ def main():
             continue
         story_titles = []
         wiki_page = event_pages[event_id].event_page
+        if "Valentine" in wiki_page.title():
+            continue
         story_root_page_title = wiki_page.title(underscore=True) + "/Story"
         story_page_title_template = story_root_page_title + "/{}"
         for story_index, story in enumerate(story_list, 1):
