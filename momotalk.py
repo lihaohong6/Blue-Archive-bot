@@ -137,8 +137,8 @@ def make_conversation(conversation: list[dict], char_name: str,
     return "\n".join(result)
 
 
-def make_seo(student_name: str):
-    return f"""{{{{#seo:
+def make_top(student_name: str):
+    return f"""{{{{MomoTalkTop}}}}{{{{#seo:
     |title={student_name} MomoTalks
     |title_mode=append
     |keywords={student_name},MomoTalk,chat,messenger,ingame,dialogue,Blue Archive,モモトーク
@@ -178,7 +178,7 @@ def make_character_momotalk(momotalk: list[dict], char_name: str, favor_levels: 
     add_conversation()
 
     result.append("[[Category:MomoTalk]]")
-    return make_seo(char_name) + "\n\n".join(result)
+    return make_top(char_name) + "\n\n".join(result)
 
 
 s = pwb.Site()
