@@ -26,9 +26,10 @@ class MainStory:
 
 
 EpisodeDict = dict[int, dict[int, dict[int, MainStory]]]
-main_story_root_page = Page(s, f"Main Story")
+# main_story_root_page = Page(s, f"Main Story")
 volume_map: dict[int, str] = {
-    100: 'F'
+    100: 'F',
+    114514: 'EX',
 }
 
 
@@ -66,10 +67,17 @@ def make_main_story():
     id_to_story_info: dict[int, StoryInfo] = {}
 
     for scenario in scenarios:
-        story_id = scenario['FrontScenarioGroupId'][0]
+        scenario_group = scenario['FrontScenarioGroupId']
+        if len(scenario_group) == 0:
+            continue
+        story_id = scenario_group[0]
         volume = scenario['VolumeId']
         chapter = scenario['ChapterId']
         episode = scenario['EpisodeId']
+        mode = scenario['ModeType']
+        assert mode in {"Main", "SpecialOperation"}, f"Unknown mode {mode}"
+        if mode == 'SpecialOperation':
+            volume = 114514
         story_info = make_main_story_text(scenario)
         if story_info is None:
             print(make_main_story_title(volume, chapter, episode) + " cannot be found")
@@ -85,7 +93,7 @@ def make_main_story():
         assert episode not in all_episodes[volume][chapter], "Duplicate episode"
         all_episodes[volume][chapter][episode] = story
 
-    # make_nav(all_episodes, id_to_story)
+    make_nav(all_episodes, id_to_story)
 
     # Do not call this function unless you want to regenerate these
     # generate_parent_page(all_episodes)
@@ -99,7 +107,8 @@ def make_main_story():
             print(make_main_story_title(story.volume, story.chapter, story.episode) + " cannot be found")
             continue
         page = title_to_page[story.page]
-        if page.text.strip() != story_info.text:
+        # if page.text.strip() != story_info.text:
+        if not page.exists():
             page.text = story_info.text
             page.save(summary="batch create experimental main story pages")
 

@@ -1,20 +1,16 @@
 import json
 import re
 from dataclasses import dataclass, asdict
+from functools import cache
 from pathlib import Path
 
-from pywikibot import Site
 from pywikibot.pagegenerators import GeneratorFactory
-from torch.fx.passes.pass_manager import logger
 
-from utils import scenario_character_name, dev_name_to_canonical_name, load_json, load_json_list
+from story.log_utils import logger
+from utils import scenario_character_name, dev_name_to_canonical_name, load_json, load_json_list, s
 
-s = Site()
-sprites_cache = {}
-
+@cache
 def get_existing_sprites() -> dict[str, list[str]]:
-    if len(sprites_cache) > 0:
-        return sprites_cache
     result_file = Path("cache/sprites.json")
     if not result_file.exists():
         gen = GeneratorFactory(s)
@@ -28,8 +24,7 @@ def get_existing_sprites() -> dict[str, list[str]]:
                 result[name] = []
             result[name].append(num)
         json.dump(result, open(result_file, "w", encoding="utf-8"), ensure_ascii=False, indent=4)
-    sprites_cache.update(json.load(open(result_file, "r", encoding="utf-8")))
-    return sprites_cache
+    return json.load(open(result_file, "r", encoding="utf-8"))
 
 reported_missing_spines: set[str] = set()
 
@@ -106,11 +101,18 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
                     logger.warning(f"Spine {spine} not found")
                     reported_missing_spines.add(spine)
 
-        # deal with cases such as 3;사키;S2_11
+        # deal with cases such as 3;사키;S2_11 and 3;히마리;S2
         if expression_number is not None and "S" in expression_number:
             match = re.search(r"(S\d?)_(\d\d)", expression_number)
-            assert match is not None
-            spine_suffix, expression_number = match.groups()
+            if match is not None:
+                spine_suffix, expression_number = match.groups()
+            else:
+                match = re.search(r"S\d+", expression_number)
+                if match is not None:
+                    spine_suffix = match.group(0)
+                    expression_number = "00"
+                else:
+                    raise RuntimeError(f"Spine {expression_number} cannot be parsed")
             spine += " " + spine_suffix
 
         if spine in existing_sprites and expression_number not in existing_sprites[spine]:
@@ -130,7 +132,7 @@ def get_main_scenarios() -> list[dict]:
     with open ("json/ScenarioModeExcelTable.json", "r", encoding="utf-8") as f:
         result = json.load(f)
         result = result['DataList']
-        return [row for row in result if row['ModeType'] == "Main"]
+        return [row for row in result if row['ModeType'] in {"Main", "SpecialOperation"}]
 
 
 def get_story_title_and_summary(query: int | str) -> tuple[str, str]:
