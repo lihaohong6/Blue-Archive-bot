@@ -140,6 +140,7 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
             option_dict = {"group": str(option_group), "option": str(selection_group)}
 
         if sound is not None and sound != "":
+            sound = re.sub(r"^SE", "SE", sound, flags=re.IGNORECASE)
             sound_name = re.sub(r"^ ?(SE|SFX)_", "", sound)
             sound_name = re.sub(r"(?<! )_?([A-Z])", r" \1", sound_name)
             sound_name = re.sub(r"[_ ]\d{2}.?$", "", sound_name, flags=re.IGNORECASE)
@@ -228,7 +229,8 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
 
 def process_popup(events, line, story_state):
     if line['PopupFileName'] != "":
-        popup_name = line['PopupFileName']
+        popup_name: str = line['PopupFileName']
+        popup_name = popup_name.replace('U', 'u')
         if popup_name != story_state.current_popup:
             events.append({"": "popup", "popup": popup_name})
             story_state.current_popup = popup_name

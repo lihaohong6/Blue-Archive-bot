@@ -22,7 +22,7 @@ def excel_download():
              "MissionExcelTable.json",
              "CampaignStageRewardExcelTable.json",
              "EventContentScenarioExcelTable.json"]
-    files.extend(["AcademyMessanger{}ExcelTable.json".format(i) for i in range(1, 10)])
+    files.extend(["AcademyMessanger{}ExcelTable.json".format(i) for i in range(1, 5)])
     download("https://raw.githubusercontent.com/electricgoat/ba-data/global/Excel/", files)
 
 

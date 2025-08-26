@@ -115,7 +115,7 @@ def make_relationship_stories():
             page: Page = title_to_page[page_title]
             # FIXME: Every page would be touched otherwise. This is not ideal. We would need to update all stories
             #  at some point
-            if page.text == "":
+            if page.text != story.text:
                 page.text = story.text
                 page.save("batch generate relationship story pages")
         page = title_to_page[char_stories.page]
