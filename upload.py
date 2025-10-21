@@ -1,13 +1,13 @@
 import re
+import sys
 from pathlib import Path
 from typing import Callable
 
 import pywikibot as pwb
 from pywikibot.page import FilePage
 from pywikibot.pagegenerators import PreloadingGenerator
-from pywikibot.site import APISite
 
-s: APISite = pwb.Site()
+s = pwb.Site()
 s.login()
 upload_path = Path("./upload")
 
@@ -87,6 +87,8 @@ def upload_files(extensions: tuple[str, ...],
                 continue
             error_string = str(e)
             search = re.search(r"duplicate of \['([^']+)'", error_string)
+            if search is None:
+                search = re.search(r'duplicate of \["([^"]+)"', error_string)
             if search is not None:
                 p = FilePage(s, "File:" + name_mapper(f.name))
                 p.text = f"#REDIRECT [[File:{search.group(1)}]]"
@@ -133,7 +135,10 @@ def upload_sound_effects(path: Path):
 
 
 def upload_story():
-    root = Path(r"D:\BA\ba-cdn\data_jp\cdn_data")
+    if sys.platform.startswith("linux"):
+        root = Path("/home/peter/Documents/Programs/ba-cdn/data_jp/cdn_data")
+    else:
+        root = Path(r"D:\BA\ba-cdn\data_jp\cdn_data")
     assert root.exists()
     cur = max([subdir for subdir in root.iterdir() if subdir.is_dir()], key=lambda f: f.name)
     assert cur.exists()
@@ -141,8 +146,10 @@ def upload_story():
     assert data.exists()
     ui_path = data / "UIs"
     scenario_path = ui_path / "03_Scenario"
-    # upload_cut_scenes(scenario_path / "01_Background")
+    assert scenario_path.exists()
+    upload_cut_scenes(scenario_path / "01_Background")
     scenario_image_path = scenario_path / "04_ScenarioImage"
+    assert scenario_image_path.exists()
     upload_momotalk_images(scenario_image_path)
     upload_story_popups(scenario_image_path)
     upload_bgm(data / "Audio" / "BGM")
