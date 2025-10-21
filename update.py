@@ -17,23 +17,26 @@ def download(base: str, files: list[str]):
 
 
 def excel_download():
-    files = ["AcademyFavorScheduleExcelTable.json",
-             "CampaignStageExcelTable.json",
-             "MissionExcelTable.json",
-             "CampaignStageRewardExcelTable.json",
-             "EventContentScenarioExcelTable.json"]
+    files = [
+        "EventContentScenarioExcelTable.json"
+    ]
     files.extend(["AcademyMessanger{}ExcelTable.json".format(i) for i in range(1, 5)])
     download("https://raw.githubusercontent.com/electricgoat/ba-data/global/Excel/", files)
 
 
 def db_download():
-    files = ["ScenarioBGNameExcelTable.json",
-             "ScenarioBGName_GlobalExcelTable.json",
-             "BGMExcelTable.json",
-             "LocalizeExcelTable.json",
-             "ScenarioCharacterNameExcelTable.json",
-             "ScenarioModeExcelTable.json",
-             ]
+    files = [
+        "CampaignStageExcelTable.json",
+        "MissionExcelTable.json",
+        "CampaignStageRewardExcelTable.json",
+        "AcademyFavorScheduleExcelTable.json",
+        "ScenarioBGNameExcelTable.json",
+        "ScenarioBGName_GlobalExcelTable.json",
+        "BGMExcelTable.json",
+        "LocalizeExcelTable.json",
+        "ScenarioCharacterNameExcelTable.json",
+        "ScenarioModeExcelTable.json",
+    ]
     files.extend(["ScenarioScriptExcelTable{}.json".format(i) for i in range(1, 5)])
     download("https://raw.githubusercontent.com/electricgoat/ba-data/global/DB/", files)
 
