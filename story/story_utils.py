@@ -1,10 +1,12 @@
 import json
 import re
-from dataclasses import dataclass, asdict
-from functools import cache
+from dataclasses import dataclass, asdict, field
+from enum import Enum
+from functools import cache, cached_property
 from pathlib import Path
 
 from pywikibot.pagegenerators import GeneratorFactory
+from wikitextparser import Template
 
 from story.log_utils import logger
 from utils import scenario_character_name, dev_name_to_canonical_name, load_json, load_json_list, s
@@ -29,8 +31,11 @@ def get_existing_sprites() -> dict[str, list[str]]:
 reported_missing_spines: set[str] = set()
 
 
-def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, str, str, str]], int]:
+def run_hash(string):
     from xxhash import xxh32
+    return int(xxh32(string).intdigest())
+
+def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, str, str, str]], int]:
     result = []
     speaker = None
     if len(scenario_character_name) == 0:
@@ -64,7 +69,7 @@ def get_scenario_character_id(text_ko_original: str) -> tuple[list[tuple[str, st
         # a -> A; b -> B
         string_options = [name_ko, name_ko.upper(), name_ko.lower(), name_ko.encode('utf-8')]
         for string in string_options:
-            hashed = int(xxh32(string).intdigest())
+            hashed = run_hash(string)
             if hashed in scenario_character_name:
                 break
         else:
@@ -135,47 +140,26 @@ def get_main_scenarios() -> list[dict]:
         return [row for row in result if row['ModeType'] in {"Main", "SpecialOperation"}]
 
 
-def get_story_title_and_summary(query: int | str) -> tuple[str, str]:
-    """
-    This file is organized in a way that summary immediately follows the title, so we can take advantage
-    of this by recording the index of each json entry.
-    """
+class StoryType(Enum):
+    RELATIONSHIP = 0
+    MAIN = 1
+    SIDE = 2
+    GROUP = 3
+    EVENT = 4
 
-    def process(loaded: dict) -> tuple[list, dict, dict]:
-        loaded = loaded['DataList']
-        localization_list: list[str] = []
-        localization_dict: dict[int, int] = {}
-        en_to_index: dict[str, list[int]] = {}
-        for index, row in enumerate(loaded):
-            row_id = row['Key']
-            row_text = row['En']
-            localization_list.append(row_text)
-            localization_dict[row_id] = index
-            def add_to_dict(text: str):
-                if text not in en_to_index:
-                    en_to_index[text] = []
-                en_to_index[text].append(index)
-            add_to_dict(row_text)
-            row_text_changed = re.sub(r" +[12]$", "", row_text)
-            if row_text_changed != row_text:
-                add_to_dict(row_text_changed)
-            if "Part" in row_text:
-                add_to_dict(row_text.replace("Part ", ""))
-        return localization_list, localization_dict, en_to_index
 
-    lst, id_to_index, en_to_index = load_json("LocalizeExcelTable.json", process)
+def get_story_title_and_summary(query: int, story_type: StoryType) -> tuple[str, str]:
+    def process(loaded) -> dict[int, str]:
+        data_list = loaded['DataList']
+        result: dict[int, str] = {}
+        for row in data_list:
+            result[row['Key']] = row['En']
+        return result
 
-    if isinstance(query, int):
-        index = id_to_index[query]
-        return lst[index], lst[index + 1]
-    else:
-        indices: list[int] | None = en_to_index.get(query, None)
-        if indices is None or len(indices) > 3:
-            return query, ""
-        summaries = []
-        for index in indices[1:]:
-            summaries.append(lst[index + 1])
-        return query, " ".join(summaries)
+    data = load_json("LocalizeExcelTable.json", process)
+    title_key = f"ScenarioDigest_Title_{query}"
+    description_key = f"ScenarioDigest_Description_{query}"
+    return data.get(run_hash(title_key), None), data.get(run_hash(description_key), None)
 
 
 def make_nav_span(event: dict) -> str:
@@ -256,20 +240,46 @@ class NavArgs:
 
 
 @dataclass
-class TitleArgs:
-    title: str = ""
-    summary: str = ""
+class StoryInfo:
+    title: str
+    summary: str
+    main_text: str
+    category: str
+    nav_top: Template = field(default_factory=lambda: Template("{{Story/StoryTop}}"))
+    nav_bottom: Template = field(default_factory=lambda: Template("{{Story/StoryBottom}}"))
+
+    # FIXME: the before argument should be dropped
+    def add_nav_arg(self, k: str, v: str, top_only: bool = False, before: str = None):
+        self.nav_top.set_arg(k, v, before=before)
+        if not top_only:
+            self.nav_bottom.set_arg(k, v)
+
+    @property
+    def text(self):
+        raise RuntimeError()
+
+    @cached_property
+    def full_text(self):
+        def format_nav(nav: str) -> str:
+            nav, _ = re.subn(r"(?<! )\|", " |", nav)
+            nav, _ = re.subn(r"\|(?! )", "| ", nav)
+            nav, _ = re.subn(r"(?<! )}}", " }}", nav)
+            return nav
+
+        return "\n".join([
+            format_nav(str(self.nav_top)),
+            self.main_text,
+            format_nav(str(self.nav_bottom)),
+            self.category
+        ])
 
 
-def make_custom_nav(nav_top: str,
-                    nav_bottom: str,
-                    nav_args: NavArgs,
-                    title_args: TitleArgs) -> tuple[str, str]:
-    def make_args(args: dict[str, str]) -> str:
-        return " | ".join(f"{k}={v}" for k, v in args.items() if v)
-
-    nav_string = make_args(asdict(nav_args))
-    title_string = make_args(asdict(title_args))
-    nav_top = nav_top.replace("}}", " | " + nav_string + " | " + title_string + " }}")
-    nav_bottom = nav_bottom.replace("}}", " | " + nav_string + " }}")
-    return nav_top, nav_bottom
+def make_story_nav(story: StoryInfo,
+                   nav_args: NavArgs):
+    args = asdict(nav_args)
+    # FIXME: don't fix ordering
+    for k in ['next_title', 'next_page', 'prev_title', 'prev_page']:
+        v = args[k]
+        if v == "":
+            continue
+        story.add_nav_arg(k, v, before="title")

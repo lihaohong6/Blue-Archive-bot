@@ -4,16 +4,14 @@ from dataclasses import dataclass, field
 from pywikibot import Page
 from pywikibot.pagegenerators import PreloadingGenerator
 
-from story.story_parser import StoryType, make_story_text, STORY_TOP, STORY_BOTTOM
-from story.story_utils import s, get_story_title_and_summary
-from utils import load_favor_schedule, get_character_table
+from story.story_parser import make_story_text
+from story.story_utils import s, StoryType, StoryInfo, make_story_nav, NavArgs
+from utils import load_favor_schedule, get_character_table, save_page
 
 
 @dataclass
 class RelationshipStory:
-    title: str
-    summary: str
-    text: str
+    story_info: StoryInfo
     sequence: int
     favor: int
 
@@ -37,15 +35,13 @@ def parse_character_relationship_story(event_list: list[dict], char_name: str) -
     base_text = ["{{Story/RelationshipStoryTop}}"]
     for index, event in enumerate(event_list, 1):
         favor_level = event["FavorRank"]
-        localization_id = event["LocalizeScenarioId"]
-        event_name, event_summary = get_story_title_and_summary(localization_id)
         story = make_story_text(event['ScenarioSriptGroupId'], StoryType.RELATIONSHIP, character_name=char_name)
         if story is None:
             raise RuntimeError(f"Story of {char_name} with event {event} failed to parse")
-        story = RelationshipStory(event_name, event_summary, story.text, index, favor_level)
+        story = RelationshipStory(story, index, favor_level)
         char_story.story_list.append(story)
-        base_text.append(f"==[[/{story.sequence}|{event_name}]]==")
-        base_text.append(event_summary)
+        base_text.append(f"==[[/{story.sequence}|{story.story_info.title}]]==")
+        base_text.append(story.story_info.summary)
     base_text.append("[[Category:Relationship stories]]")
     char_story.text = "\n\n".join(base_text)
     return char_story
@@ -72,30 +68,14 @@ def parse_all_relationship_story_pages():
         for index, story in enumerate(stories):
             next_story = stories[index + 1] if index + 1 < len(stories) else None
             prev_story = stories[index - 1] if index - 1 >= 0 else None
-            args: dict[str, str] = {}
+            args = NavArgs()
             if next_story is not None:
-                args.update({
-                    'next_title': next_story.title,
-                    'next_page': next_story.page(character_story.char_name)
-                })
+                args.next_title = next_story.story_info.title
+                args.next_page = next_story.page(character_story.char_name)
             if prev_story is not None:
-                args.update({
-                    'prev_title': prev_story.title,
-                    'prev_page': prev_story.page(character_story.char_name)
-                })
-
-            def make_args() -> str:
-                return " | ".join(f"{k}={v}" for k, v in args.items())
-
-            nav_string = make_args()
-            args = {
-                'title': story.title,
-                'summary': story.summary
-            }
-            title_string = make_args()
-            top = STORY_TOP.replace("}}", " | " + nav_string + " | " + title_string + " }}")
-            bottom = STORY_BOTTOM.replace("}}", " | " + nav_string + " }}")
-            story.text = story.text.replace(STORY_TOP, top).replace(STORY_BOTTOM, bottom)
+                args.prev_title = prev_story.story_info.title
+                args.prev_page = prev_story.page(character_story.char_name)
+            make_story_nav(story.story_info, args)
 
     return all_stories
 
@@ -112,16 +92,10 @@ def make_relationship_stories():
         for story in char_stories.story_list:
             page_title = story.page(char_name)
             assert page_title in title_to_page, f"{story.page} is not in cached page list"
-            page: Page = title_to_page[page_title]
-            # FIXME: Every page would be touched otherwise. This is not ideal. We would need to update all stories
-            #  at some point
-            if page.text != story.text:
-                page.text = story.text
-                page.save("batch generate relationship story pages")
+            page = title_to_page[page_title]
+            save_page(page, story.story_info.full_text, "batch generate relationship story pages")
         page = title_to_page[char_stories.page]
-        if page.text.strip() != char_stories.text:
-            page.text = char_stories.text
-            page.save("batch generate relationship story pages")
+        save_page(page, char_stories.text, "batch generate relationship story pages")
 
 
 def main():

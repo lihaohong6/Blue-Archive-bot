@@ -1,18 +1,10 @@
 import re
 from dataclasses import dataclass
-from enum import Enum
 
 from story.log_utils import logger
-from story.story_utils import strip_st_line, get_story_event, make_categories
+from story.story_utils import strip_st_line, get_story_event, make_categories, get_story_title_and_summary, StoryType, \
+    StoryInfo
 from utils import get_bgm_file_info, music_file_name_to_title, get_background_file_name, signature_escape
-
-
-class StoryType(Enum):
-    RELATIONSHIP = 0
-    MAIN = 1
-    SIDE = 2
-    GROUP = 3
-    EVENT = 4
 
 
 def story_type_to_cat(story_type: StoryType):
@@ -25,16 +17,9 @@ def story_type_to_cat(story_type: StoryType):
     }.get(story_type)
 
 
-@dataclass
-class StoryInfo:
-    title: str | None
-    text: list[dict[str, str]] | str
-    chars: set[str]
-    music: set[str]
-
-
 zmc_regex = re.compile(r"#zmc;(instant|move);-?\d+,-?\d+;\d+(;\d+)?")
 st_regex = re.compile(r"#st;\[-?\d+,-?\d+];(serial|instant);\d+;")
+
 
 def process_info(text) -> str:
     text, _ = re.subn(r"^\[ns] *", "", text)
@@ -62,6 +47,7 @@ def event_list_to_template(event_list: list[dict[str, str]]) -> str:
     result.append("}}")
     return "\n".join(result)
 
+
 @dataclass
 class StoryState:
     hanging_bgm: bool = False
@@ -70,7 +56,14 @@ class StoryState:
     live2d_mode: bool = False
 
 
-def parse_story(lines: list[dict], story_type: StoryType, character_name: str = None) -> StoryInfo:
+@dataclass
+class ParsedStory:
+    intermediate_text: list[dict[str, str]]
+    chars: set[str]
+    music: set[str]
+
+
+def parse_story(lines: list[dict], story_type: StoryType, character_name: str = None) -> ParsedStory:
     bgm_list: set[str] = set()
     character_list: set[str] = set()
     from story.story_utils import get_scenario_character_id
@@ -181,7 +174,8 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
             if is_st_line:
                 text = strip_st_line(text)
 
-            character_query_result = [res for res in character_query_result if res[0] is not None and res[2] is not None and res[2].strip() != '']
+            character_query_result = [res for res in character_query_result if
+                                      res[0] is not None and res[2] is not None and res[2].strip() != '']
             characters = set("".join(s for s in r if s is not None) for r in character_query_result)
             if characters != onscreen_characters and len(character_query_result) > 1:
                 # FIXME: this feature is disabled because no good rule can be devised
@@ -224,7 +218,10 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
     if story_state.hanging_bgm:
         events.append({"": "bgm-stop"})
 
-    return StoryInfo(story_title, events, character_list, bgm_list)
+    return ParsedStory(
+        intermediate_text=events,
+        chars=character_list,
+        music=bgm_list)
 
 
 def process_popup(events, line, story_state):
@@ -274,11 +271,11 @@ def process_bgm(bgm_list, state: StoryState, line, events):
                     }
 
             events.append({
-                "": "bgm",
-                "bgm": bgm.name,
-                "name": bgm_title,
-                "volume": f"{bgm.volume:.2f}",
-            } | loop_dict)
+                              "": "bgm",
+                              "bgm": bgm.name,
+                              "name": bgm_title,
+                              "volume": f"{bgm.volume:.2f}",
+                          } | loop_dict)
             state.hanging_bgm = True
 
 
@@ -305,10 +302,6 @@ def process_special_effects(lower: str, events: list[dict[str, str]]):
     return is_st_line, lower
 
 
-STORY_TOP = "{{Story/StoryTop}}"
-STORY_BOTTOM = "{{Story/StoryBottom}}"
-
-
 def make_story_text(event_ids: int | list[int], story_type: StoryType, cat: str | list[str] | None = None,
                     character_name: str | None = None) -> StoryInfo | None:
     if cat is None:
@@ -318,7 +311,14 @@ def make_story_text(event_ids: int | list[int], story_type: StoryType, cat: str 
     if isinstance(event_ids, int):
         event_ids = [event_ids]
     event_lines = []
+    titles: list[str] = []
+    summaries = []
     for event_id in event_ids:
+        title, summary = get_story_title_and_summary(event_id, story_type)
+        if title is not None:
+            titles.append(title)
+        if summary is not None:
+            summaries.append(summary)
         lines = get_story_event(event_id)
         if lines is not None:
             if len(event_lines) > 0:
@@ -326,11 +326,19 @@ def make_story_text(event_ids: int | list[int], story_type: StoryType, cat: str 
             event_lines.extend(lines)
     if len(event_lines) == 0:
         return None
-    story = parse_story(event_lines, story_type, character_name=character_name)
-    story_text = event_list_to_template(story.text)
-    result = [STORY_TOP,
-              story_text,
-              STORY_BOTTOM,
-              make_categories(cat, story.chars, story.music)]
-    story.text = "\n".join(result)
+    parsed_story = parse_story(event_lines, story_type, character_name=character_name)
+    assert len(titles) > 0
+    if len(titles) > 1:
+        if any(t != titles[0] for t in titles):
+            assert titles[0][-1].isnumeric()
+            titles[0] = " ".join(titles[0].split(" ")[:-1])
+    title = titles[0]
+    summary = "\n\n".join(summaries)
+    story_text = event_list_to_template(parsed_story.intermediate_text)
+    story = StoryInfo(title=title,
+                      summary=summary,
+                      main_text=story_text,
+                      category=make_categories(cat, parsed_story.chars, parsed_story.music))
+    story.add_nav_arg("title", story.title, top_only=True)
+    story.add_nav_arg("summary", story.summary, top_only=True)
     return story

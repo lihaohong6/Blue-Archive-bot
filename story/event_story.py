@@ -4,10 +4,9 @@ from dataclasses import dataclass
 
 from pywikibot import Page
 from pywikibot.pagegenerators import GeneratorFactory
-import wikitextparser as wtp
 
-from story.story_parser import make_story_text, StoryType, StoryInfo, STORY_TOP, STORY_BOTTOM
-from story.story_utils import make_custom_nav, NavArgs, TitleArgs
+from story.story_parser import make_story_text
+from story.story_utils import make_story_nav, NavArgs, StoryType, StoryInfo
 from utils import load_json, s, save_page
 
 
@@ -86,9 +85,8 @@ def main():
             if real_index < len(story_list) - 1:
                 nav_args.next_title = story_list[real_index + 1].title
                 nav_args.next_page = story_page_title_template.format(str(story_index + 1))
-            nav_top, nav_bottom = make_custom_nav(STORY_TOP, STORY_BOTTOM, nav_args, TitleArgs(story.title))
-            text = story.text.replace(STORY_TOP, nav_top).replace(STORY_BOTTOM, nav_bottom)
-            save_page(story_page, text, summary="batch create event story page")
+            make_story_nav(story, nav_args)
+            save_page(story_page, story.full_text, summary="batch create event story page")
             story_titles.append((story_page_title, story.title))
         story_root_page = Page(s, story_root_page_title)
         root_page_text = "\n".join(f"#[[{titles[0]}|{titles[1]}]]" for index, titles in enumerate(story_titles, start=1))

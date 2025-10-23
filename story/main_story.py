@@ -3,9 +3,10 @@ from dataclasses import dataclass
 from pywikibot import Page
 from pywikibot.pagegenerators import PreloadingGenerator
 
-from story.story_parser import StoryInfo, make_story_text, StoryType
-from story.story_utils import s, get_story_title_and_summary, get_main_scenarios
-from utils import save_json_page
+from story.story_parser import make_story_text
+from story.story_utils import s, get_main_scenarios, StoryType, NavArgs, make_story_nav, \
+    StoryInfo
+from utils import save_page
 
 
 def make_main_story_text(event: dict) -> StoryInfo | None:
@@ -16,13 +17,11 @@ def make_main_story_text(event: dict) -> StoryInfo | None:
 @dataclass
 class MainStory:
     id: int
-    title: str
+    story_info: StoryInfo
     page: str
     volume: int
     chapter: int
     episode: int
-    next_story: "MainStory" = None
-    previous_story: "MainStory" = None
 
 
 EpisodeDict = dict[int, dict[int, dict[int, MainStory]]]
@@ -51,9 +50,8 @@ def generate_parent_page(all_episodes: EpisodeDict):
         for chapter in all_episodes[volume]:
             result.append(f"==Chapter {chapter}==")
             for episode, story in all_episodes[volume][chapter].items():
-                result.append(f";[[{story.page}|Episode {story.episode}: {story.title}]]")
-                summary = get_story_title_and_summary(story.title)[1]
-                result.append(summary)
+                result.append(f";[[{story.page}|Episode {story.episode}: {story.story_info.title}]]")
+                result.append(story.story_info.summary)
         string = "\n".join(result)
         if page.text != string:
             page.text = string
@@ -64,7 +62,6 @@ def make_main_story():
     scenarios = get_main_scenarios()
     all_episodes: EpisodeDict = {}
     id_to_story: dict[int, MainStory] = {}
-    id_to_story_info: dict[int, StoryInfo] = {}
 
     for scenario in scenarios:
         scenario_group = scenario['FrontScenarioGroupId']
@@ -82,18 +79,17 @@ def make_main_story():
         if story_info is None:
             print(make_main_story_title(volume, chapter, episode) + " cannot be found")
             continue
-        id_to_story_info[story_id] = story_info
         if volume not in all_episodes:
             all_episodes[volume] = {}
         if chapter not in all_episodes[volume]:
             all_episodes[volume][chapter] = {}
         page_title = make_main_story_title(volume, chapter, episode)
-        story = MainStory(story_id, story_info.title, page_title, volume, chapter, episode)
+        story = MainStory(story_id, story_info, page_title, volume, chapter, episode)
         id_to_story[story_id] = story
         assert episode not in all_episodes[volume][chapter], "Duplicate episode"
         all_episodes[volume][chapter][episode] = story
 
-    make_nav(all_episodes, id_to_story)
+    generate_nav(all_episodes, id_to_story)
 
     # Do not call this function unless you want to regenerate these
     # generate_parent_page(all_episodes)
@@ -102,30 +98,9 @@ def make_main_story():
     title_to_page: dict[str, Page] = dict((page.title(), page) for page in gen)
 
     for story_id, story in id_to_story.items():
-        story_info = id_to_story_info.get(story_id, None)
-        if story_info is None:
-            print(make_main_story_title(story.volume, story.chapter, story.episode) + " cannot be found")
-            continue
+        story_info = story.story_info
         page = title_to_page[story.page]
-        # if page.text.strip() != story_info.text:
-        if not page.exists():
-            page.text = story_info.text
-            page.save(summary="batch create experimental main story pages")
-
-
-def make_nav(all_episodes, id_to_story):
-    generate_nav(all_episodes, id_to_story)
-    json_obj = {}
-    for story in id_to_story.values():
-        prev = story.previous_story
-        next_story = story.next_story
-        json_obj[story.page] = {
-            'prev_page': prev.page if prev else '',
-            'prev_title': prev.title if prev else '',
-            'next_page': next_story.page if next_story else '',
-            'next_title': next_story.title if next_story else '',
-        }
-    save_json_page("Module:Story/navigation.json", json_obj)
+        save_page(page, story_info.full_text, summary="update main story pages")
 
 
 def generate_nav(all_episodes, id_to_story: dict[int, MainStory]):
@@ -158,8 +133,16 @@ def generate_nav(all_episodes, id_to_story: dict[int, MainStory]):
         return all_episodes[vol].get(next_chap, {}).get(1, None)
 
     for story in id_to_story.values():
-        story.next_story = get_next_episode(story.id)
-        story.previous_story = get_previous_episode(story.id)
+        nav = NavArgs()
+        next_story = get_next_episode(story.id)
+        if next_story is not None:
+            nav.next_page = next_story.page
+            nav.next_title = next_story.story_info.title
+        prev_story = get_previous_episode(story.id)
+        if prev_story is not None:
+            nav.prev_page = prev_story.page
+            nav.prev_title = prev_story.story_info.title
+        make_story_nav(story.story_info, nav)
 
 
 def main():
