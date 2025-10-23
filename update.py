@@ -20,12 +20,12 @@ def excel_download():
     files = [
         "EventContentScenarioExcelTable.json"
     ]
-    files.extend(["AcademyMessanger{}ExcelTable.json".format(i) for i in range(1, 5)])
     download("https://raw.githubusercontent.com/electricgoat/ba-data/global/Excel/", files)
 
 
 def db_download():
     files = [
+        "AcademyMessangerExcelTable.json",
         "CampaignStageExcelTable.json",
         "MissionExcelTable.json",
         "CampaignStageRewardExcelTable.json",

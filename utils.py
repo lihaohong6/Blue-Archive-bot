@@ -89,19 +89,17 @@ def dev_name_to_canonical_name(dev_name: str) -> str:
     return ""
 
 
+@cache
 def load_momotalk() -> dict[int, list[dict]]:
     result = {}
-    for i in range(0, 10):
-        momotalk = load_json(f"AcademyMessanger{i}ExcelTable.json")
-        if momotalk is None:
-            continue
-        if 'DataList' in momotalk:
-            momotalk = momotalk['DataList']
-        for talk in momotalk:
-            cid = talk['CharacterId']
-            if cid not in result:
-                result[cid] = []
-            result[cid].append(talk)
+    momotalk = load_json(f"AcademyMessangerExcelTable.json")
+    if 'DataList' in momotalk:
+        momotalk = momotalk['DataList']
+    for talk in momotalk:
+        cid = talk['CharacterId']
+        if cid not in result:
+            result[cid] = []
+        result[cid].append(talk)
     return result
 
 
