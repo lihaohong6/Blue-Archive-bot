@@ -233,6 +233,17 @@ def process_popup(events, line, story_state):
             story_state.current_popup = popup_name
 
 
+def spine_bg_conversion(original: str) -> str | None:
+    return {
+        "11000_01": "BG CS Abydos 02",
+        "12000_01_01": "BG CS Abydos 08",
+        "12000_01_02": "BG CS Abydos 08",
+        "12000_02": "BG CS Abydos 09",
+        "51000_01": "BG PV4 5 28",
+        "52000_02": "BG CS Hyakkiyako 11",
+    }.get(original, None)
+
+
 def process_background(character_name, events, line, story_state, story_type):
     if line['BGName'] != 0:
         file_name = get_background_file_name(line['BGName'])
@@ -245,6 +256,12 @@ def process_background(character_name, events, line, story_state, story_type):
                 file_name = f"Memorial Lobby {character_name}"
             else:
                 story_state.live2d_mode = False
+            if file_name.startswith("SpineBG_SC"):
+                r = spine_bg_conversion(file_name.replace("SpineBG_SC", ""))
+                if r:
+                    file_name = r
+                else:
+                    print(f"ERROR: spine conversion failed for {file_name}")
             if story_state.current_background != file_name:
                 events.append({"": "background", "background": file_name})
                 story_state.current_background = file_name
