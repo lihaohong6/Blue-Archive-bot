@@ -245,55 +245,58 @@ def spine_bg_conversion(original: str) -> str | None:
 
 
 def process_background(character_name, events, line, story_state, story_type):
-    if line['BGName'] != 0:
-        file_name = get_background_file_name(line['BGName'])
-        if file_name is None:
-            logger.warning(f"Background image not found for {line['BGName']}")
+    if line['BGName'] == 0:
+        return
+    file_name = get_background_file_name(line['BGName'])
+    if file_name is None:
+        logger.warning(f"Background image not found for {line['BGName']}")
+        return
+    # in some places (e.g. L2D) the same file name gets repeated multiple times
+    if "SpineBG_Lobby" in file_name and story_type == StoryType.RELATIONSHIP:
+        story_state.live2d_mode = True
+        file_name = f"Memorial Lobby {character_name}"
+    else:
+        story_state.live2d_mode = False
+    if file_name.startswith("SpineBG_SC"):
+        r = spine_bg_conversion(file_name.replace("SpineBG_SC", ""))
+        if r:
+            file_name = r
         else:
-            # in some places (e.g. L2D) the same file name gets repeated multiple times
-            if "SpineBG_Lobby" in file_name and story_type == StoryType.RELATIONSHIP:
-                story_state.live2d_mode = True
-                file_name = f"Memorial Lobby {character_name}"
-            else:
-                story_state.live2d_mode = False
-            if file_name.startswith("SpineBG_SC"):
-                r = spine_bg_conversion(file_name.replace("SpineBG_SC", ""))
-                if r:
-                    file_name = r
-                else:
-                    print(f"ERROR: spine conversion failed for {file_name}")
-            if story_state.current_background != file_name:
-                events.append({"": "background", "background": file_name})
-                story_state.current_background = file_name
+            print(f"ERROR: spine conversion failed for {file_name}")
+    if story_state.current_background != file_name:
+        events.append({"": "background", "background": file_name})
+        story_state.current_background = file_name
 
 
 def process_bgm(bgm_list, state: StoryState, line, events):
     bgm_id = line['BGMId']
+    if bgm_id == 0 or bgm_id == 999 and len(events) <= 0:
+        return
     # sometimes bgm stop is issued at the start; need to avoid that
-    if bgm_id != 0 and (bgm_id != 999 or len(events) > 0):
-        if bgm_id == 999:
-            events.append({"": "bgm-stop"})
-            state.hanging_bgm = False
-        else:
-            bgm_list.add(bgm_id)
-            bgm = get_bgm_file_info(bgm_id)
-            bgm_title = music_file_name_to_title(bgm.name)
+    if bgm_id == 999:
+        events.append({"": "bgm-stop"})
+        state.hanging_bgm = False
+        return
+    bgm_list.add(bgm_id)
+    bgm = get_bgm_file_info(bgm_id)
+    bgm_title = music_file_name_to_title(bgm.name)
 
-            loop_dict = {}
-            if bgm.loop_start is not None or bgm.loop_end is not None:
-                if abs(bgm.loop_end - 0.0) > 0.0001:
-                    loop_dict = {
-                        "loop-start": f"{bgm.loop_start:.2f}",
-                        "loop-end": f"{bgm.loop_end:.2f}",
-                    }
+    loop_dict = {}
+    if bgm.loop_start is not None or bgm.loop_end is not None:
+        if abs(bgm.loop_end - 0.0) > 0.0001:
+            loop_dict = {
+                "loop-start": f"{bgm.loop_start:.2f}",
+                "loop-end": f"{bgm.loop_end:.2f}",
+            }
 
-            events.append({
-                              "": "bgm",
-                              "bgm": bgm.name,
-                              "name": bgm_title,
-                              "volume": f"{bgm.volume:.2f}",
-                          } | loop_dict)
-            state.hanging_bgm = True
+    events.append(
+        {
+            "": "bgm",
+            "bgm": bgm.name,
+            "name": bgm_title,
+            "volume": f"{bgm.volume:.2f}",
+        } | loop_dict)
+    state.hanging_bgm = True
 
 
 def process_special_effects(lower: str, events: list[dict[str, str]]):
