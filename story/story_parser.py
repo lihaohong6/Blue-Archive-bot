@@ -347,11 +347,18 @@ def make_story_text(event_ids: int | list[int], story_type: StoryType, cat: str 
     if len(event_lines) == 0:
         return None
     parsed_story = parse_story(event_lines, story_type, character_name=character_name)
-    assert len(titles) > 0
+    if len(titles) == 0:
+        print(f"No title found for {event_ids}")
+        return None
     if len(titles) > 1:
         if any(t != titles[0] for t in titles):
-            assert titles[0][-1].isnumeric()
-            titles[0] = " ".join(titles[0].split(" ")[:-1])
+            if titles[0][-1].isnumeric():
+                # Something part 1 followed by something part 2
+                titles[0] = " ".join(titles[0].split(" ")[:-1])
+            else:
+                # Some irregular title pattern; just use the first title
+                print(f"Irregular title pattern: {titles}")
+                pass
     title = titles[0]
     summary = "\n\n".join(summaries)
     story_text = event_list_to_template(parsed_story.intermediate_text)

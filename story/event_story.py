@@ -12,18 +12,27 @@ from utils import load_json, s, save_page
 
 @dataclass
 class Event:
-    id: int
+    event_content_id: int
     scenario_groups: list[int]
 
 
 def load_event_stories() -> list[Event]:
     table = load_json("EventContentScenarioExcelTable.json")
     table = table['DataList']
-    result = []
+    result: list[Event] = []
     for d in table:
         event_content_id = d['EventContentId']
         scenario_group_ids = d['ScenarioGroupId']
-        if str(scenario_group_ids[0]).endswith("5") and len(result) > 0:
+        is_meetup = d['IsMeetup']
+        # Ignore all Valentine meetups for now
+        if is_meetup:
+            continue
+        append = False
+        if str(scenario_group_ids[0]).endswith("5") and len(result) > 0 and result[-1].event_content_id == event_content_id:
+            # If they are the same event and the diff is 5, we have a battle
+            if result[-1].scenario_groups[-1] - scenario_group_ids[0] == -5:
+                append = True
+        if append:
             result[-1].scenario_groups.extend(scenario_group_ids)
         else:
             result.append(Event(event_content_id, scenario_group_ids))
@@ -56,13 +65,13 @@ def get_wiki_events() -> list[WikiEvent]:
 def main():
     event_stories: dict[int, list[StoryInfo]] = {}
     for event in load_event_stories():
-        if event.id not in event_stories:
-            event_stories[event.id] = []
+        if event.event_content_id not in event_stories:
+            event_stories[event.event_content_id] = []
         story = make_story_text(event.scenario_groups, StoryType.EVENT)
         if story is None:
-            logging.error(f"Could not parse story for event {event.id}")
+            logging.error(f"Could not parse story for event {event.event_content_id}")
             continue
-        event_stories[event.id].append(story)
+        event_stories[event.event_content_id].append(story)
     event_pages = dict((e.event_id, e) for e in get_wiki_events())
     for event_id, story_list in event_stories.items():
         if event_id not in event_pages:
