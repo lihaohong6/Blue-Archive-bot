@@ -53,9 +53,9 @@ def generate_parent_page(all_episodes: EpisodeDict):
                 result.append(f";[[{story.page}|Episode {story.episode}: {story.story_info.title}]]")
                 result.append(story.story_info.summary)
         string = "\n".join(result)
-        if page.text != string:
-            page.text = string
-            page.save("generate navigational page")
+        # Change this condition when generating a new nav page
+        if page.title(underscore=True) == "":
+            save_page(page, string, "generate navigational page")
 
 
 def make_main_story():
@@ -66,7 +66,7 @@ def make_main_story():
     for scenario in scenarios:
         scenario_group = scenario['FrontScenarioGroupId']
         if len(scenario_group) == 0:
-            continue
+            scenario_group = scenario['BackScenarioGroupId']
         story_id = scenario_group[0]
         volume = scenario['VolumeId']
         chapter = scenario['ChapterId']
@@ -92,7 +92,7 @@ def make_main_story():
     generate_nav(all_episodes, id_to_story)
 
     # Do not call this function unless you want to regenerate these
-    # generate_parent_page(all_episodes)
+    generate_parent_page(all_episodes)
 
     gen = PreloadingGenerator(Page(s, story.page) for story in id_to_story.values())
     title_to_page: dict[str, Page] = dict((page.title(), page) for page in gen)

@@ -125,6 +125,8 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
         if match is not None:
             script = f"3;{match.group(1)};00;lorem ipsum"
             text = re.sub(r"\[/?log=([^]]+)]", "", text)
+        # There's also text like [log]Uphold the Kadenokouji name.[/log] which don't have a speaker
+        text = re.sub(r"\[/?log]", "", text)
 
         character_query_result, speaker = get_scenario_character_id(script)
 
