@@ -79,8 +79,6 @@ def main():
             continue
         story_titles = []
         wiki_page = event_pages[event_id].event_page
-        if "Valentine" in wiki_page.title():
-            continue
         story_root_page_title = wiki_page.title(underscore=True) + "/Story"
         story_page_title_template = story_root_page_title + "/{}"
         for story_index, story in enumerate(story_list, 1):
@@ -98,7 +96,8 @@ def main():
             save_page(story_page, story.full_text, summary="batch create event story page")
             story_titles.append((story_page_title, story.title))
         story_root_page = Page(s, story_root_page_title)
-        root_page_text = "\n".join(f"#[[{titles[0]}|{titles[1]}]]" for index, titles in enumerate(story_titles, start=1))
+        root_page_text = "<noinclude>{{EventStoryTop}}</noinclude>\n"
+        root_page_text += "\n".join(f"#[[{titles[0]}|{titles[1]}]]" for index, titles in enumerate(story_titles, start=1))
         root_page_text += "<noinclude>[[Category:Event stories]]</noinclude>"
         save_page(story_root_page, root_page_text, summary="batch create event story navigation page")
 
