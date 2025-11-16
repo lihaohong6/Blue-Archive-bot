@@ -197,15 +197,15 @@ def strip_st_line(line: str) -> str:
     return line
 
 
-def make_categories(start: list[str] = None, character_list: set[str] = None, bgm_list: set[str] = None) -> str:
+def make_categories(start: list[str] = None, character_list: dict[str, int] = None, bgm_list: set[str] = None) -> str:
     if character_list is None:
         character_list = []
     if bgm_list is None:
-        bgm_list = set()
+        bgm_list = dict()
     if start is None:
         start = set()
     bgm_string = "{{Story/BGMList | " + " | ".join(str(bgm) for bgm in sorted(bgm_list)) + " }}"
-    char_string = "{{Story/CharList | " + " | ".join(sorted(character_list)) + " }}"
+    char_string = "{{Story/CharList | " + " | ".join(sorted(character_list.keys())) + " }}"
     return bgm_string + char_string + "\n".join(f"[[Category:{c}]]" for c in start)
 
 
@@ -245,6 +245,7 @@ class StoryInfo:
     summary: str
     main_text: str
     category: str
+    chars: dict[str, int]
     nav_top: Template = field(default_factory=lambda: Template("{{Story/StoryTop}}"))
     nav_bottom: Template = field(default_factory=lambda: Template("{{Story/StoryBottom}}"))
 

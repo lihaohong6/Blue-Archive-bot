@@ -1,5 +1,7 @@
 import re
+from collections import defaultdict
 from dataclasses import dataclass
+from typing import DefaultDict
 
 from story.log_utils import logger
 from story.story_utils import strip_st_line, get_story_event, make_categories, get_story_title_and_summary, StoryType, \
@@ -59,13 +61,13 @@ class StoryState:
 @dataclass
 class ParsedStory:
     intermediate_text: list[dict[str, str]]
-    chars: set[str]
+    chars: dict[str, int]
     music: set[str]
 
 
 def parse_story(lines: list[dict], story_type: StoryType, character_name: str = None) -> ParsedStory:
     bgm_list: set[str] = set()
-    character_list: set[str] = set()
+    character_list: dict[str, int] = defaultdict(int)
     from story.story_utils import get_scenario_character_id
     events: list[dict[str, str]] = []
     option_group = 0
@@ -199,7 +201,7 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
                 else:
                     name, nickname, spine, portrait, sequence = speaker
                 if name is not None and name != "":
-                    character_list.add(name)
+                    character_list[name] += 1
                 portrait_dict = {}
                 if spine is not None and spine != "":
                     # Ignore portrait here. Spine is almost always the better one to use.
@@ -367,7 +369,8 @@ def make_story_text(event_ids: int | list[int], story_type: StoryType, cat: str 
     story = StoryInfo(title=title,
                       summary=summary,
                       main_text=story_text,
-                      category=make_categories(cat, parsed_story.chars, parsed_story.music))
+                      category=make_categories(cat, parsed_story.chars, parsed_story.music),
+                      chars=parsed_story.chars)
     story.add_nav_arg("title", story.title, top_only=True)
     story.add_nav_arg("summary", story.summary, top_only=True)
     return story
