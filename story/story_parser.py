@@ -268,7 +268,10 @@ def process_background(character_name, events, line, story_state, story_type):
         else:
             print(f"ERROR: spine conversion failed for {file_name}")
     if story_state.current_background != file_name:
-        events.append({"": "background", "background": file_name})
+        if file_name.startswith("Memorial Lobby"):
+            events.append({"": "memlobby", "memlobby": character_name})
+        else:
+            events.append({"": "background", "background": file_name})
         story_state.current_background = file_name
 
 
