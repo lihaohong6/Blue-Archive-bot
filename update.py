@@ -43,6 +43,7 @@ def db_download():
 
 def wiki_repo_download():
     files = ["translation/" + s for s in ["LocalizeCharProfile.json", "devname_map.json", "devname_map_aux.json"]]
+    files.append("shared/glossary.py")
     download("https://raw.githubusercontent.com/electricgoat/bluearchivewiki/master/", files)
 
 

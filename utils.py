@@ -63,20 +63,27 @@ def get_character_table(use_cache: bool = True) -> dict[int, str]:
     return result
 
 
-dev_name_map: dict[str, str] = {}
+@cache
+def get_dev_name_map() -> dict[str, str]:
+    dev_name_map: dict[str, str] = {}
+
+    def read_dev_name_map(fname: str):
+        name_map = json.load(open(fname, "r", encoding="utf-8"))
+        for k, v in name_map.items():
+            wiki_name = v['firstname']
+            if v['variant'] is not None:
+                wiki_name += f" ({v['variant']})"
+            dev_name_map[k] = wiki_name
+
+    read_dev_name_map('json/devname_map.json')
+    read_dev_name_map('json/devname_map_aux.json')
+
+    return dev_name_map
 
 
 def dev_name_to_canonical_name(dev_name: str) -> str:
-    if len(dev_name_map) == 0:
-        def read_dev_name_map(fname: str):
-            name_map = json.load(open(fname, "r", encoding="utf-8"))
-            for k, v in name_map.items():
-                wiki_name = v['firstname']
-                if v['variant'] is not None:
-                    wiki_name += f" ({v['variant']})"
-                dev_name_map[k] = wiki_name
-        read_dev_name_map('json/devname_map.json')
-        read_dev_name_map('json/devname_map_aux.json')
+    dev_name_map = get_dev_name_map()
+
     if dev_name == "Null":
         return ""
     if dev_name in dev_name_map:
@@ -87,6 +94,25 @@ def dev_name_to_canonical_name(dev_name: str) -> str:
         return dev_name_map[dev_name.lower()]
     # print("Cannot find canonical name of " + dev_name)
     return ""
+
+
+@cache
+def get_club_name_mapping() -> dict[str, str]:
+    path = Path("json/glossary.py")
+    assert path.exists()
+    result: dict[str, str] = {}
+    for line in open(path, "r", encoding="utf-8").readlines():
+        m = re.search(r"'(.+)': ?'(.+)'(,|$)", line)
+        if m:
+            result[m.group(1)] = m.group(2)
+    return result
+
+
+def get_localized_club_name(name: str):
+    mapping = get_club_name_mapping()
+    if name in mapping:
+        return mapping[name]
+    raise ValueError(name)
 
 
 @cache

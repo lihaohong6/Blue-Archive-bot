@@ -6,7 +6,7 @@ from pywikibot import Page
 from pywikibot.pagegenerators import GeneratorFactory
 
 from story.story_parser import make_story_text
-from story.story_utils import make_story_nav, NavArgs, StoryType, StoryInfo
+from story.story_utils import make_story_nav, NavArgs, StoryType, StoryInfo, make_story_list_nav
 from utils import load_json, s, save_page
 
 
@@ -95,18 +95,10 @@ def make_event_stories():
         wiki_page = event_pages[event_id].event_page
         story_root_page_title = wiki_page.title(underscore=True) + "/Story"
         story_page_title_template = story_root_page_title + "/{}"
+        make_story_list_nav(story_list, story_page_title_template.format(""))
         for story_index, story in enumerate(story_list, 1):
             story_page_title = story_page_title_template.format(str(story_index))
             story_page = Page(s, story_page_title)
-            nav_args = NavArgs()
-            real_index = story_index - 1
-            if real_index > 0:
-                nav_args.prev_title = story_list[real_index - 1].title
-                nav_args.prev_page = story_page_title_template.format(str(story_index - 1))
-            if real_index < len(story_list) - 1:
-                nav_args.next_title = story_list[real_index + 1].title
-                nav_args.next_page = story_page_title_template.format(str(story_index + 1))
-            make_story_nav(story, nav_args)
             save_page(story_page, story.full_text, summary="batch create event story page")
             story_titles.append((story_page_title, story.title))
         # There's some special navigation for Valentine stories. Do not touch this page.

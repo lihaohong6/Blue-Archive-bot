@@ -284,3 +284,15 @@ def make_story_nav(story: StoryInfo,
         if v == "":
             continue
         story.add_nav_arg(k, v, before="title")
+
+
+def make_story_list_nav(stories: list[StoryInfo], page_prefix: str):
+    for index, story in enumerate(stories):
+        args = NavArgs()
+        if index > 0:
+            args.prev_title = stories[index - 1].title
+            args.prev_page = f"{page_prefix}{index}"
+        if index < len(stories) - 1:
+            args.next_title = stories[index + 1].title
+            args.next_page = f"{page_prefix}{index + 2}"
+        make_story_nav(story, args)
