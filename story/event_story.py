@@ -100,14 +100,14 @@ def make_event_stories():
             story_page_title = story_page_title_template.format(str(story_index))
             story_page = Page(s, story_page_title)
             save_page(story_page, story.full_text, summary="batch create event story page")
-            story_titles.append((story_page_title, story.title))
+            story_titles.append((story_page_title, story.title, story.summary))
         # There's some special navigation for Valentine stories. Do not touch this page.
         if "♡" in story_root_page_title and "Valentine" in story_root_page_title:
             continue
         story_root_page = Page(s, story_root_page_title)
         root_page_text = "<noinclude>{{EventStoryTop}}</noinclude>\n"
-        root_page_text += "\n".join(
-            f"#[[{titles[0]}|{titles[1]}]]" for index, titles in enumerate(story_titles, start=1))
+        root_page_text += "\n\n".join(
+            f";[[{page}|{title}]]\n{summary}" for page, title, summary in story_titles)
         root_page_text += "<noinclude>[[Category:Event stories]]</noinclude>"
         save_page(story_root_page, root_page_text, summary="batch create event story navigation page")
 
