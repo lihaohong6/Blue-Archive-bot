@@ -215,6 +215,9 @@ def get_events(pattern: str) -> dict:
         for loaded in d:
             loaded = loaded['DataList']
             for row in loaded:
+                teen_mode = row['TeenMode']
+                if teen_mode:
+                    continue
                 group_id = row['GroupId']
                 if group_id not in result:
                     result[group_id] = []
