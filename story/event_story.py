@@ -34,6 +34,7 @@ def load_event_stories() -> list[Event]:
     table = load_json("EventContentScenarioExcelTable.json")
     table = table['DataList']
     result: list[Event] = []
+    claimed_scenario_groups: set[int] = set()
     for d in table:
         event_content_id = d['EventContentId']
         scenario_group_ids = d['ScenarioGroupId']
@@ -41,6 +42,13 @@ def load_event_stories() -> list[Event]:
         # Process Valentine meetups separately
         if is_meetup:
             continue
+        # Some events (reruns, or omnibus "replay in lobby" bundles like Steel
+        # Continent Assault reusing A Midsummer Night's Tea Party's episodes)
+        # reuse ScenarioGroupIds already claimed by an earlier event. Credit
+        # the scenario group to whichever event claimed it first.
+        if any(gid in claimed_scenario_groups for gid in scenario_group_ids):
+            continue
+        claimed_scenario_groups.update(scenario_group_ids)
         append = False
         if str(scenario_group_ids[0]).endswith("5") and len(result) > 0 and result[-1].event_content_id == event_content_id:
             # If they are the same event and the diff is 5, we have a battle
