@@ -16,13 +16,6 @@ def download(base: str, files: list[str]):
             print(f"Skipped {f}")
 
 
-def excel_download():
-    files = [
-        "EventContentScenarioExcelTable.json"
-    ]
-    download("https://raw.githubusercontent.com/electricgoat/ba-data/global/Excel/", files)
-
-
 def db_download():
     files = [
         "AcademyMessangerExcelTable.json",
@@ -36,6 +29,7 @@ def db_download():
         "LocalizeExcelTable.json",
         "ScenarioCharacterNameExcelTable.json",
         "ScenarioModeExcelTable.json",
+        "EventContentScenarioExcelTable.json",
     ]
     files.extend(["ScenarioScriptExcelTable{}.json".format(i) for i in range(1, 5)])
     download("https://raw.githubusercontent.com/electricgoat/ba-data/global/DB/", files)
@@ -48,6 +42,5 @@ def wiki_repo_download():
 
 
 Path("json").mkdir(exist_ok=True)
-excel_download()
 db_download()
 wiki_repo_download()
