@@ -92,7 +92,7 @@ def make_main_story():
     generate_nav(all_episodes, id_to_story)
 
     # Do not call this function unless you want to regenerate these
-    generate_parent_page(all_episodes)
+    # generate_parent_page(all_episodes)
 
     gen = PreloadingGenerator(Page(s, story.page) for story in id_to_story.values())
     title_to_page: dict[str, Page] = dict((page.title(), page) for page in gen)
@@ -100,7 +100,8 @@ def make_main_story():
     for story_id, story in id_to_story.items():
         story_info = story.story_info
         page = title_to_page[story.page]
-        save_page(page, story_info.full_text, summary="update main story pages")
+        if not page.exists():
+            save_page(page, story_info.full_text, summary="update main story pages")
 
 
 def generate_nav(all_episodes, id_to_story: dict[int, MainStory]):
