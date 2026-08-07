@@ -1,3 +1,3 @@
-python ./update.py
-python ./momotalk.py
-python ./character_infobox.py
+uv run ./update.py
+uv run ./momotalk.py
+uv run -m story.story_main
