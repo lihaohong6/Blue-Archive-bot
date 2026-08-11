@@ -5,11 +5,13 @@ from enum import Enum
 from functools import cache, cached_property
 from pathlib import Path
 
+from pywikibot import Page
 from pywikibot.pagegenerators import GeneratorFactory
-from wikitextparser import Template
+from wikitextparser import Template, parse
 
 from story.log_utils import logger
-from utils import scenario_character_name, dev_name_to_canonical_name, load_json, load_json_list, s
+from utils import scenario_character_name, dev_name_to_canonical_name, load_json, load_json_list, s, find_template, \
+    save_page
 
 @cache
 def get_existing_sprites() -> dict[str, list[str]]:
@@ -251,6 +253,8 @@ class StoryInfo:
     chars: dict[str, int]
     nav_top: Template = field(default_factory=lambda: Template("{{Story/StoryTop}}"))
     nav_bottom: Template = field(default_factory=lambda: Template("{{Story/StoryBottom}}"))
+    # main story pages write their nav templates without spaces around the pipes
+    nav_compact: bool = False
 
     # FIXME: the before argument should be dropped
     def add_nav_arg(self, k: str, v: str, top_only: bool = False, before: str = None):
@@ -265,6 +269,8 @@ class StoryInfo:
     @cached_property
     def full_text(self):
         def format_nav(nav: str) -> str:
+            if self.nav_compact:
+                return nav
             nav, _ = re.subn(r"(?<! )\|", " |", nav)
             nav, _ = re.subn(r"\|(?! )", "| ", nav)
             nav, _ = re.subn(r"(?<! )}}", " }}", nav)
@@ -287,6 +293,53 @@ def make_story_nav(story: StoryInfo,
         if v == "":
             continue
         story.add_nav_arg(k, v, before="title")
+
+
+def match_nav_arg_order(nav: Template, existing_text: str):
+    """Reorder nav's arguments to follow the order the same template already uses on the page.
+
+    Main story pages predate the current generator and list title/summary before the prev/next
+    links; regenerating them would otherwise rewrite every page just to shuffle arguments."""
+    existing = find_template(parse(existing_text), nav.name.strip())
+    if existing is None:
+        return
+    args = nav.arguments
+    if any(arg.positional for arg in args):
+        return
+    values = {arg.name.strip(): arg.value for arg in args}
+    if len(values) != len(args):
+        # duplicated argument names; deleting by name would lose data
+        return
+    order = [arg.name.strip() for arg in existing.arguments]
+    # stable sort, so arguments absent from the existing page keep their order at the end
+    names = sorted(values, key=lambda name: order.index(name) if name in order else len(order))
+    if names == list(values):
+        return
+    for name in names:
+        nav.del_arg(name)
+    for name in names:
+        nav.set_arg(name, values[name])
+
+
+def nav_is_compact(nav: Template, existing_text: str) -> bool | None:
+    """Whether the page writes this nav template without spaces around its pipes. None if the
+    page has no such template to copy from."""
+    existing = find_template(parse(existing_text), nav.name.strip())
+    if existing is None or len(existing.arguments) == 0:
+        return None
+    return all(not arg.string[1:2].isspace() for arg in existing.arguments)
+
+
+def save_story_page(page: Page, story: StoryInfo, summary: str):
+    existing_text = page.text
+    match_nav_arg_order(story.nav_top, existing_text)
+    match_nav_arg_order(story.nav_bottom, existing_text)
+    compact = nav_is_compact(story.nav_top, existing_text)
+    if compact is not None:
+        story.nav_compact = compact
+    # full_text is cached, so it must not have been rendered before the nav templates settled
+    story.__dict__.pop("full_text", None)
+    save_page(page, story.full_text, summary=summary)
 
 
 def make_story_list_nav(stories: list[StoryInfo], page_prefix: str):

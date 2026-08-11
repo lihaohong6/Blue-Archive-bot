@@ -6,7 +6,7 @@ from pywikibot import Page
 from pywikibot.pagegenerators import GeneratorFactory
 
 from story.story_parser import make_story_text
-from story.story_utils import make_story_nav, NavArgs, StoryType, StoryInfo, make_story_list_nav
+from story.story_utils import make_story_nav, NavArgs, StoryType, StoryInfo, make_story_list_nav, save_story_page
 from utils import load_json, s, save_page
 
 
@@ -107,7 +107,7 @@ def make_event_stories():
         for story_index, story in enumerate(story_list, 1):
             story_page_title = story_page_title_template.format(str(story_index))
             story_page = Page(s, story_page_title)
-            save_page(story_page, story.full_text, summary="batch create event story page")
+            save_story_page(story_page, story, summary="batch create event story page")
             story_titles.append((story_page_title, story.title, story.summary))
         # There's some special navigation for Valentine stories. Do not touch this page.
         if "♡" in story_root_page_title and "Valentine" in story_root_page_title:
@@ -133,7 +133,7 @@ def make_valentine_stories():
     story_list = []
     for char_name, story in name_to_story.items():
         page = Page(s, root_page.title() + "/" + char_name)
-        save_page(page, story.full_text, summary="valentine character dating story page")
+        save_story_page(page, story, summary="valentine character dating story page")
         story_list.append(f"* [[{page.title()}|{char_name}: {story.title}]]")
     # page = Page(s, "Happy Schale ♡ Valentine patrol/Dates")
     # save_page(page, "\n".join(story_list), summary="valentine dating stories page")

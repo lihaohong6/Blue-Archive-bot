@@ -21,6 +21,19 @@ def story_type_to_cat(story_type: StoryType):
 
 zmc_regex = re.compile(r"#zmc;(instant|move);-?\d+,-?\d+;\d+(;\d+)?")
 st_regex = re.compile(r"#st;\[-?\d+,-?\d+];(serial|instant);\d+;")
+speaker_prefix_regex = re.compile(r"^\d+;([^;]+);[S_\d]+;")
+
+
+def strip_leaked_speaker_prefix(text: str, script: str) -> str:
+    """Some localized lines mistakenly keep the speaker prefix (e.g. "3;<Key>;17;") in the
+    translated text. Drop it when the same speaker also heads a line of the original script."""
+    match = speaker_prefix_regex.match(text)
+    if match is None:
+        return text
+    name = re.escape(match.group(1))
+    if re.search(rf"^\d+;{name};", script, flags=re.MULTILINE) is None:
+        return text
+    return text[match.end():]
 
 
 def process_info(text) -> str:
@@ -95,6 +108,7 @@ def parse_story(lines: list[dict], story_type: StoryType, character_name: str = 
         script: str = line['ScriptKr']
         lower: str = script.lower()
         text: str = line['TextEn']
+        text = strip_leaked_speaker_prefix(text, script)
         # FIXME: deal with emoticon?
         # text = text + "".join(extract_em(script))
         text = text.replace("#n", "<br/>")

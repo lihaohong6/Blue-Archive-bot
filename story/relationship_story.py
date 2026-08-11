@@ -5,7 +5,7 @@ from pywikibot import Page
 from pywikibot.pagegenerators import PreloadingGenerator
 
 from story.story_parser import make_story_text
-from story.story_utils import s, StoryType, StoryInfo, make_story_nav, NavArgs
+from story.story_utils import s, StoryType, StoryInfo, make_story_nav, NavArgs, save_story_page
 from utils import load_favor_schedule, get_character_table, save_page
 
 
@@ -93,7 +93,7 @@ def make_relationship_stories():
             page_title = story.page(char_name)
             assert page_title in title_to_page, f"{story.page} is not in cached page list"
             page = title_to_page[page_title]
-            save_page(page, story.story_info.full_text, "batch generate relationship story pages")
+            save_story_page(page, story.story_info, "batch generate relationship story pages")
         page = title_to_page[char_stories.page]
         save_page(page, char_stories.text, "batch generate relationship story pages")
 

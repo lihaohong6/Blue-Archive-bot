@@ -5,7 +5,7 @@ from pywikibot.pagegenerators import PreloadingGenerator
 
 from story.story_parser import make_story_text
 from story.story_utils import s, get_main_scenarios, StoryType, NavArgs, make_story_nav, \
-    StoryInfo
+    StoryInfo, save_story_page
 from utils import save_page
 
 
@@ -100,8 +100,7 @@ def make_main_story():
     for story_id, story in id_to_story.items():
         story_info = story.story_info
         page = title_to_page[story.page]
-        if not page.exists():
-            save_page(page, story_info.full_text, summary="update main story pages")
+        save_story_page(page, story_info, summary="update main story pages")
 
 
 def generate_nav(all_episodes, id_to_story: dict[int, MainStory]):

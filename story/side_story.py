@@ -3,7 +3,7 @@ from itertools import groupby
 from pywikibot import Page
 
 from story.story_parser import make_story_text
-from story.story_utils import StoryType, make_story_list_nav
+from story.story_utils import StoryType, make_story_list_nav, save_story_page
 from utils import load_json, s, save_page, get_localized_club_name
 
 
@@ -31,7 +31,7 @@ def make_side_stories():
         group_story_page_text.append(f"==[[/{club}|{localized_club}]]==")
         for index, story in enumerate(stories, 1):
             page = Page(s, f"{root_page.title()}/{index}")
-            save_page(page, story.full_text, "Batch create club stories")
+            save_story_page(page, story, "Batch create club stories")
             root_page_text.append(f";[[{page.title()}|{story.title}]]\n{story.summary}")
             group_story_page_text.append(f"# [[{page.title()}|{story.title}]]")
         root_page_text.append("{{ClubStoryBottom}}")
