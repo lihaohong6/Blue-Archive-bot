@@ -358,7 +358,8 @@ def make_story_text(event_ids: int | list[int], story_type: StoryType, cat: str 
         title, summary = get_story_title_and_summary(event_id, story_type)
         if title is not None:
             titles.append(title)
-        if summary is not None:
+        if summary is not None and summary not in summaries:
+            # an episode's scenario groups sometimes all carry the same summary
             summaries.append(summary)
         lines = get_story_event(event_id)
         if lines is not None:

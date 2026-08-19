@@ -139,7 +139,11 @@ def get_main_scenarios() -> list[dict]:
     with open ("json/ScenarioModeExcelTable.json", "r", encoding="utf-8") as f:
         result = json.load(f)
         result = result['DataList']
-        return [row for row in result if row['ModeType'] in {"Main", "SpecialOperation"}]
+        # Series1's Prologue rows duplicate its Main rows in volume 0, so only Series2
+        # contributes ModeType == "Prologue" episodes of its own.
+        return [row for row in result
+                if row['ModeType'] in {"Main", "SpecialOperation"}
+                or (row['ModeType'] == "Prologue" and row['SubType'] == "Series2")]
 
 
 class StoryType(Enum):
