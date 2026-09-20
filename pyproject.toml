@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4>=4.13.4",
+    "numpy>=2.5.3",
     "pywikibot>=10.2.0",
     "unitypy[ttgen]>=1.25.2",
     "wikitextparser>=0.56.4",

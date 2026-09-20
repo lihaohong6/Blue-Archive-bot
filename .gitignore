@@ -23,3 +23,5 @@ __pycache__
 /.env
 /story/GroundingDINO
 /drafts
+/vendor
+/model_viewer/models

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blue Archive model viewer (PoC)</title>
+
+<!--
+  Reuses the ModelViewer gadget from https://dev.miraheze.org/wiki/Template:ModelViewer/doc
+  (source: https://github.com/lihaohong6/MirahezeDevScripts/tree/master/gadgets/ModelViewer).
+  Replace @dist with a commit hash to pin a version.
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lihaohong6/MirahezeDevScripts@dist/dist/ModelViewer/style.css">
+
+<style>
+  body { margin: 0; padding: 1.5rem; font-family: system-ui, sans-serif; }
+  h1 { font-size: 1.2rem; margin: 0 0 1rem; }
+  #status { color: #666; font-size: .9rem; }
+</style>
+</head>
+<body>
+
+<h1>Blue Archive model viewer <small>(PoC)</small></h1>
+<p id="status">Loading models.json…</p>
+
+<div class="model-viewer" data-height="600" data-shading="unlit" data-camera="0,5,1" data-preload="eager"
+     data-anim-default="Cafe_Reaction" data-autoplay="1" data-loop="1"
+     data-hide-parts="optional" data-outline="1" data-outline-width="25" hidden>
+  <!-- data-hide-parts matches the `optional` extras export_models.py writes onto
+       props the default clip leaves at rest; clips that use a prop name its group
+       in their own `show` extras, which needs a gadget built after that change was
+       added. jsDelivr caches an @dist URL for hours;
+       purge.jsdelivr.net/gh/<repo>@dist/<path> forces it. -->
+  <div class="model-viewer-controls" data-controls="model,anim,play,scrub,speed,loop"></div>
+  <div class="model-viewer-controls" data-controls="outline,outline-width,outline-color"></div>
+  <div class="model-viewer-controls" data-controls="shading,autorotate,grid,reset,fullscreen"></div>
+</div>
+
+<script>
+// Minimal stand-in for the MediaWiki JS surface the gadget expects.
+// mw.hook remembers the last fire, so handlers registered later still run.
+window.mw = window.mw || (function () {
+  const hooks = {};
+  function hook(name) {
+    const h = hooks[name] || (hooks[name] = { handlers: [], fired: null });
+    return {
+      add(fn) {
+        h.handlers.push(fn);
+        if (h.fired) fn.apply(null, h.fired);
+        return this;
+      },
+      fire(...args) {
+        h.fired = args;
+        h.handlers.forEach(fn => fn.apply(null, args));
+        return this;
+      }
+    };
+  }
+  const log = (...a) => console.log(...a);
+  log.warn = (...a) => console.warn(...a);
+  log.error = (...a) => console.error(...a);
+  return { hook, log, loader: { using: () => Promise.resolve() } };
+})();
+
+(async function () {
+  const status = document.getElementById('status');
+  const container = document.querySelector('.model-viewer');
+
+  let models = [];
+  try {
+    models = await (await fetch('models/models.json', { cache: 'no-cache' })).json();
+  } catch (e) {
+    status.textContent = 'Could not read models.json — serve this directory over HTTP ' +
+                         '(python -m http.server) and run export_models.py first.';
+    return;
+  }
+  const files = Object.entries(models);
+  if (!files.length) {
+    status.textContent = 'models.json is empty; run export_models.py first.';
+    return;
+  }
+
+  // "Name=url" pairs, as the gadget's data-models expects; the label is the
+  // wiki's name, which is why export_models.py keeps commas out of them. The
+  // mtime query string busts the browser cache (python -m http.server sends
+  // no Cache-Control).
+  container.dataset.models = files
+    .map(([file, mtime]) => `${file.replace(/\.glb$/, '')}=models/${encodeURI(file)}?${mtime}`)
+    .join(',');
+  container.hidden = false;
+  status.textContent = `${files.length} model(s)`;
+
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/gh/lihaohong6/MirahezeDevScripts@dist/dist/ModelViewer/index.js';
+  script.onload = () => mw.hook('wikipage.content').fire(document.body);
+  document.head.appendChild(script);
+})();
+</script>
+
+</body>
+</html>
