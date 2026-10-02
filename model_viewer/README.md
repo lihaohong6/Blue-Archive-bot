@@ -99,6 +99,17 @@ the body every time. A clip left driving nothing — a camera track, or an
 animation written for a prop rig — is dropped along with the geometry it
 belonged to.
 
+**Cafe bodies.** Saori (Dress) and Toki sit in the cafe as a separate body,
+`<name>_CafeOnly_Mesh`. It has its own Avatar, and its rest frames differ from
+those of the main rig even where bone paths match. Cafe clips played on the
+main body pull the dress into the legs. These two characters get a second
+model, `<label> (Cafe).glb`, built from the `<name>_CafeOnly` runtime prefab.
+Both runtime controllers list the cafe clips, so they cannot assign them.
+Instead, each clip goes to the rig whose Avatar resolves more of its bindings,
+and ties go to the main body. Niko, Kurumi and Otogi also ship a `_CafeOnly`
+prefab. Theirs drives the main Avatar and adds only an event prop, so they
+export as one model.
+
 **The halo.** The runtime character prefab supplies a `HaloRoot` subtree with
 the intended mesh, material, position and scale. The exporter reads it from
 `character-<name>-_mxload-*` bundles and follows references into other bundles,

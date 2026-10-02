@@ -61,6 +61,12 @@ FLIP = np.diag([-1.0, 1.0, 1.0, 1.0])
 # data-anim-default in viewer.html.
 DEFAULT_CLIP = "Cafe_Reaction"
 
+# A few characters sit in the cafe as a separate body, `<name>_CafeOnly_Mesh`,
+# whose clips are keyed to its own rest frames; it is exported as a model of
+# its own, `<label> (Cafe).glb`.
+CAFE_RIG = "_cafeonly"
+CAFE_LABEL = "Cafe"
+
 # The viewer lists clips in file order: the shared, useful clips first, the
 # rest alphabetical.
 ANIMATION_PREFIX_ORDER = (
@@ -543,6 +549,15 @@ CHARACTER_CUTIN = re.compile(r"Exs_Cutin(?:_\d+)?", re.I)
 MIN_CHARACTER_BINDING_COVERAGE = 0.5
 
 
+def binding_coverage(clip, targets: dict[int, object]) -> float:
+    """The share of a clip's Transform bindings that resolve on a rig."""
+    bindings = [binding for binding in clip.m_ClipBindingConstant.genericBindings
+                if binding.typeID == TRANSFORM_CLASS_ID]
+    if not bindings:
+        return 1.0
+    return sum(binding.path in targets for binding in bindings) / len(bindings)
+
+
 def is_character_clip(clip, targets: dict[int, object], character: str) -> bool:
     """Whether a clip was authored for this character's rig.
 
@@ -553,11 +568,7 @@ def is_character_clip(clip, targets: dict[int, object], character: str) -> bool:
     name = clip_name(clip.m_Name, character)
     if name.lower().startswith("exs_cutin") and not CHARACTER_CUTIN.fullmatch(name):
         return False
-    bindings = [binding for binding in clip.m_ClipBindingConstant.genericBindings
-                if binding.typeID == TRANSFORM_CLASS_ID]
-    return (not bindings or
-            sum(binding.path in targets for binding in bindings) /
-            len(bindings) >= MIN_CHARACTER_BINDING_COVERAGE)
+    return binding_coverage(clip, targets) >= MIN_CHARACTER_BINDING_COVERAGE
 
 
 def mouth_events(clips) -> dict[tuple[str, int], list[tuple[float, int | None]]]:
@@ -1348,13 +1359,14 @@ def skinned_count(transform) -> int:
     return n + sum(skinned_count(child.read()) for child in transform.m_Children)
 
 
-def model_roots(env, name: str) -> list:
+def model_roots(env, name: str, rig: str = "") -> list:
     """The character's own prefabs: the rig it is animated on, and its halo.
 
     `Model/` still covers props the character never wears, so take the two
     prefabs named after the bundle, `<name>_Mesh` and `<name>_Halo`, falling
     back to the prefab with the most skinned renderers where the rig is named
-    something else.
+    something else.  A `rig` suffix such as CAFE_RIG asks for that body,
+    `<name><rig>_Mesh`, instead, with no fallback: none when it is absent.
     """
     prefabs = model_prefabs(env)
     candidates = []
@@ -1371,16 +1383,20 @@ def model_roots(env, name: str) -> list:
             candidates.append((transform.m_GameObject.read().m_Name.lower(), transform))
         except Exception as e:
             print(f"  skipped a prefab root: {type(e).__name__}: {e}")
-    rig = [t for n, t in candidates if n == f"{name}_mesh"]
-    if not rig and candidates:
-        rig = [max(candidates, key=lambda c: skinned_count(c[1]))[1]]
+    body = [t for n, t in candidates if n == f"{name}{rig}_mesh"]
+    if rig and not body:
+        return []
+    if not body:
+        others = [c for c in candidates if not c[0].endswith(f"{CAFE_RIG}_mesh")]
+        if others:
+            body = [max(others, key=lambda c: skinned_count(c[1]))[1]]
     # Most halo prefabs repeat the bundle name, but several costumes use a
     # different prefix.  They are still unambiguous among Model/ roots. Keep
     # the conventional name first when both it and an alternate are present.
     expected_halo = f"{name}_halo"
     halos = [t for n, t in candidates if n == expected_halo]
     halos += [t for n, t in candidates if n != expected_halo and is_halo(n)]
-    return rig + halos
+    return body + halos
 
 
 def renderers_under(transform, out: list, skip_halos: bool = False) -> None:
@@ -1595,16 +1611,19 @@ def mark_props(scene: Scene, model: ModelData) -> None:
             model.animations[k].shows.append(key)
 
 
-def extract(env, name: str, animations: bool = True,
-            runtime=None) -> tuple[Scene, ModelData]:
+def extract(env, name: str, animations: bool = True, runtime=None, rig: str = "",
+            keep_clip=None) -> tuple[Scene, ModelData]:
+    """The scene and model of one rig; `keep_clip`, given a clip, says whether
+    it is this rig's when the bundle holds clips of another body."""
     scene = Scene()
     prefab_halo = character_halo(runtime)
     model = ModelData(name=name)
-    roots = model_roots(env, name)
+    roots = model_roots(env, name, rig)
     # the expression track decides how many copies of the mouth quad are needed
     clips = read_clips(env) if animations else []
     targets = animation_targets(roots) if clips else {}
-    clips = [clip for clip in clips if is_character_clip(clip, targets, name)]
+    clips = [clip for clip in clips if is_character_clip(clip, targets, name)
+             and (keep_clip is None or keep_clip(clip))]
     model.mouth_events = mouth_events(clips)
 
     renderers: list = []
@@ -1963,28 +1982,48 @@ def model_names(bundles: list[str]) -> dict[str, str]:
     return names
 
 
-def runtime_prefab(bundle_dir: Path, name: str):
-    """The root Transform of the character prefab the game instantiates.
+def runtime_prefabs(bundle_dir: Path, name: str) -> dict[str, object]:
+    """The root Transforms of the character prefabs the game instantiates,
+    by rig: `""` for `<name>.prefab`, CAFE_RIG for `<name>_CafeOnly.prefab`.
 
-    Its bundles are loaded separately so runtime rigs and cut-in clips do not
-    enter the model export.  Only its halo and the order of its children are
-    read.
+    Their bundles are loaded separately so runtime rigs and cut-in clips do
+    not enter the model export.  Only their halo, the order of their children
+    and their Animator are read.
     """
     files = sorted(bundle_dir.glob(f"character-{name}-_mxload-*.bundle"))
     if not files:
-        return None
+        return {}
     env = UnityPy.load(*map(str, files))
     resolve_dependencies(env, bundle_dir)
-    expected = f"assets/_mx/addressableasset/character/{name}/{name}.prefab".lower()
+    expected = {f"assets/_mx/addressableasset/character/{name}/{name}{rig}.prefab".lower(): rig
+                for rig in ("", CAFE_RIG)}
+    prefabs = {}
     for obj in env.objects:
         if obj.type.name != "AssetBundle":
             continue
         for path, entry in obj.read().m_Container:
-            if path.lower() != expected:
+            rig = expected.get(path.lower())
+            if rig is None:
                 continue
             for component in entry.asset.read().m_Component:
                 if component.component.type.name == "Transform":
-                    return component.component.read()
+                    prefabs[rig] = component.component.read()
+    return prefabs
+
+
+def runtime_avatar(runtime) -> str | None:
+    """The name of the Avatar a runtime prefab's Animator drives."""
+    if runtime is None:
+        return None
+    for pair in runtime.m_GameObject.read().m_Component:
+        if pair.component.type.name != "Animator":
+            continue
+        try:
+            avatar = pair.component.read().m_Avatar
+            if avatar is not None and avatar.path_id:
+                return avatar.read().m_Name
+        except Exception as e:
+            print(f"  skipped a runtime animator: {type(e).__name__}: {e}")
     return None
 
 
@@ -2014,8 +2053,25 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
         return None
     env = UnityPy.load(*[str(f) for f in files])
     resolve_dependencies(env, bundle_dir)
-    runtime = runtime_prefab(bundle_dir, name)
-    scene, model = extract(env, name, animations, runtime)
+    runtimes = runtime_prefabs(bundle_dir, name)
+    runtime = runtimes.get("")
+    # The cafe prefab of a few characters swaps in a body of its own, with its
+    # own Avatar; most only add an event prop to the main body.  Both bodies
+    # share bone paths but not rest frames, and both controllers list the cafe
+    # clips, so a clip goes to the rig it covers more of, ties to the main.
+    cafe_roots = model_roots(env, name, CAFE_RIG)
+    cafe_avatar = runtime_avatar(runtimes.get(CAFE_RIG))
+    is_cafe = keep_clip = None
+    if cafe_roots and cafe_avatar not in (None, runtime_avatar(runtime)):
+        main_targets = animation_targets(model_roots(env, name))
+        cafe_targets = animation_targets(cafe_roots)
+
+        def is_cafe(clip) -> bool:
+            return binding_coverage(clip, cafe_targets) > binding_coverage(clip, main_targets)
+
+        def keep_clip(clip) -> bool:
+            return not is_cafe(clip)
+    scene, model = extract(env, name, animations, runtime, keep_clip=keep_clip)
     if not model.skins:
         # A few legacy sets retain only a loose weapon; the complete Model
         # prefab is in the preload bundles, loaded only for the affected export.
@@ -2024,10 +2080,19 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
             print("  no skinned character rig in Model/; trying preload bundle")
             for bundle in prolog:
                 env.load_file(str(bundle))
-            scene, model = extract(env, name, animations, runtime)
+            scene, model = extract(env, name, animations, runtime, keep_clip=keep_clip)
     if not model.meshes:
         print(f"  no meshes found for {name}")
         return None
+    write_model(scene, model, out)
+    if is_cafe is not None:
+        scene, model = extract(env, name, animations, runtimes[CAFE_RIG], CAFE_RIG, is_cafe)
+        if model.meshes:
+            write_model(scene, model, out.with_name(f"{out.stem} ({CAFE_LABEL}){out.suffix}"))
+    return out
+
+
+def write_model(scene: Scene, model: ModelData, out: Path) -> None:
     write_glb(scene, model, out)
     verts = sum(len(m.positions) for m in model.meshes)
     joints = sum(len(s.joints) for s in model.skins)
@@ -2036,7 +2101,6 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
           f"{out.stat().st_size // 1024} KiB")
     if model.animations:
         print(f"    clips: {', '.join(a.name for a in model.animations)}")
-    return out
 
 
 def export_one(bundle_dir: Path, name: str, out: Path, animations: bool,
