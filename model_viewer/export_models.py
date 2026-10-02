@@ -104,10 +104,18 @@ RENDERER_EVENTS = {"AniEvt_EnableChildRenderer": True,
 TRANSFORM_CLASS_ID = 4
 GAMEOBJECT_CLASS_ID = 1
 BIND_ACTIVE = 2086281974  # zlib.crc32(b"m_IsActive"), as Mecanim hashes it
-# Transform curve bindings, and how many float curves each one spans.
-BIND_POSITION, BIND_ROTATION, BIND_SCALE = 1, 2, 3
-BINDING_SIZE = {BIND_POSITION: 3, BIND_ROTATION: 4, BIND_SCALE: 3, 4: 3}
+# Transform curve bindings, and how many float curves each one spans.  A
+# rotation is keyed either as a quaternion or as Euler angles in degrees.
+BIND_POSITION, BIND_ROTATION, BIND_SCALE, BIND_EULER = 1, 2, 3, 4
+BINDING_SIZE = {BIND_POSITION: 3, BIND_ROTATION: 4, BIND_SCALE: 3, BIND_EULER: 3}
 GLTF_PATH = {BIND_POSITION: "translation", BIND_ROTATION: "rotation", BIND_SCALE: "scale"}
+# An Euler binding's customType is Unity's RotationOrder: the axes in the
+# order they are applied, each about the parent's axes.  Curves imported from
+# the artists' FBX keep its XYZ; Unity's own default is ZXY.
+EULER_ORDERS = ["XYZ", "XZY", "YZX", "YXZ", "ZXY", "ZYX"]
+# Euler curves are interpolated per angle, quaternion keys along the arc
+# between them; subdividing keeps the two within a few degrees of each other.
+EULER_STEP = 10.0
 
 
 # --------------------------------------------------------------------------
@@ -398,15 +406,52 @@ def clip_curves(clip) -> dict[tuple[int, int], tuple[np.ndarray, np.ndarray]]:
     keys, stop = clip_keys(clip)
     curves = {}
     for binding, start, size in binding_runs(clip):
-        if binding.typeID != TRANSFORM_CLASS_ID or binding.attribute not in GLTF_PATH:
+        if binding.typeID != TRANSFORM_CLASS_ID or binding.attribute not in BINDING_SIZE:
             continue
         components = [sorted(keys.get(start + c, [(0.0, 0.0)])) for c in range(size)]
         times = sorted({0.0, stop} | {t for c in components for t, _ in c if 0.0 <= t <= stop})
         values = np.column_stack([
             np.interp(times, [t for t, _ in c], [v for _, v in c]) for c in components
         ])
-        curves[(binding.path, binding.attribute)] = (np.array(times, dtype=np.float32), values)
+        attribute = binding.attribute
+        if attribute == BIND_EULER:
+            times, values = subdivided(times, values, components)
+            values = euler_quaternions(values, EULER_ORDERS[binding.customType])
+            attribute = BIND_ROTATION
+        curves[(binding.path, attribute)] = (np.array(times, dtype=np.float32), values)
     return curves
+
+
+def subdivided(times: list[float], values: np.ndarray, components) -> tuple[list[float], np.ndarray]:
+    """Extra keys wherever an angle moves more than EULER_STEP between two."""
+    steps = np.ceil(np.abs(np.diff(values, axis=0)).max(axis=1, initial=0) / EULER_STEP)
+    if not len(steps) or steps.max() <= 1:
+        return times, values
+    dense = [times[0]]
+    for (a, b), n in zip(zip(times, times[1:]), steps):
+        dense += list(np.linspace(a, b, max(int(n), 1) + 1)[1:])
+    return dense, np.column_stack([
+        np.interp(dense, [t for t, _ in c], [v for _, v in c]) for c in components
+    ])
+
+
+def euler_quaternions(degrees: np.ndarray, order: str) -> np.ndarray:
+    """(x, y, z, w) quaternions for Euler angles applied in the given order."""
+    quats = np.tile([0.0, 0.0, 0.0, 1.0], (len(degrees), 1))
+    for axis in order:
+        i = "XYZ".index(axis)
+        half = np.radians(degrees[:, i]) / 2
+        step = np.zeros_like(quats)
+        step[:, i], step[:, 3] = np.sin(half), np.cos(half)
+        quats = quaternion_product(step, quats)
+    return quats
+
+
+def quaternion_product(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """a * b for rows of (x, y, z, w) quaternions: b's rotation, then a's."""
+    av, aw, bv, bw = a[:, :3], a[:, 3:], b[:, :3], b[:, 3:]
+    return np.hstack([aw * bv + bw * av + np.cross(av, bv),
+                      aw * bw - np.sum(av * bv, axis=1, keepdims=True)])
 
 
 def active_curves(clip) -> dict[int, dict[float, bool]]:
