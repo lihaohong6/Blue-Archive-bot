@@ -226,7 +226,10 @@ class Scene:
 
     def find(self, transform) -> int | None:
         """Index of this transform's node, or None if nothing created one."""
-        return self._index.get(obj_key(transform))
+        return self.find_key(obj_key(transform))
+
+    def find_key(self, key: tuple | None) -> int | None:
+        return self._index.get(key)
 
     def parents(self) -> dict[int, int]:
         return {child: i for i, node in enumerate(self.nodes)
@@ -529,18 +532,47 @@ def mouth_events(clips) -> dict[tuple[str, int], list[tuple[float, int | None]]]
     return tracks
 
 
-def visibility_tracks(clips, roots, targets: dict[int, object],
-                      wanted: set) -> tuple[dict, dict]:
-    """The event tracks and the curve tracks, each {mesh: {clip: {time: shown}}}.
+def switch_children(roots, runtime, prefab_halo=None) -> tuple[list, set]:
+    """The objects an AniEvt renderer event counts through, in its order, and
+    the keys of those whose renderer starts switched off.
 
-    A clip switches a mesh either by an AniEvt event, whose number is read as
-    an index into the model root's children -- the game uses a load-time list
-    the prefab does not record, so the read is right for most characters and
-    wrong for a few -- or by animating the GameObject's active flag, which is
-    never in doubt.  The two are kept apart for plan_faces to weigh.  Later
-    events at the same time win.
+    The number is an index into the children of the runtime prefab the game
+    instantiates, which orders them differently from the model FBX -- the
+    renderers first, then the bones and the halo.  Each is matched back by
+    name to the object exported here, the halo being exported from the
+    runtime prefab itself; None where nothing was.  The events flip the
+    renderer's enabled flag, which the runtime prefab sets off for a few
+    spare bodies and props the FBX has on.  Without a runtime prefab, the
+    model root's own children are the best guess.
     """
-    children = [child.read() for child in roots[0].m_Children] if roots else []
+    if not roots:
+        return [], set()
+    own = [child.read() for child in roots[0].m_Children]
+    if runtime is None:
+        return own, set()
+    by_name = {child.m_GameObject.read().m_Name: child for child in own}
+    if prefab_halo is not None:
+        by_name.setdefault(prefab_halo.m_GameObject.read().m_Name, prefab_halo)
+    children, off = [], set()
+    for child in runtime.m_Children:
+        game_object = child.read().m_GameObject.read()
+        children.append(by_name.get(game_object.m_Name))
+        if children[-1] is not None and any(
+                pair.component.type.name in ("SkinnedMeshRenderer", "MeshRenderer")
+                and not pair.component.read().m_Enabled
+                for pair in game_object.m_Component):
+            off.add(obj_key(children[-1]))
+    return children, off
+
+
+def visibility_tracks(clips, children: list, targets: dict[int, object]) -> tuple[dict, dict]:
+    """The event tracks and the curve tracks, each {object: {clip: {time: shown}}}.
+
+    A clip switches an object either by an AniEvt event, whose number is an
+    index into `children`, or by animating the GameObject's active flag, which
+    is never in doubt.  The two are kept apart for plan_switches to weigh.
+    Later events at the same time win.
+    """
     events: dict[tuple, dict[tuple, dict[float, bool]]] = defaultdict(lambda: defaultdict(dict))
     curves: dict[tuple, dict[tuple, dict[float, bool]]] = defaultdict(lambda: defaultdict(dict))
     for clip in clips:
@@ -548,11 +580,9 @@ def visibility_tracks(clips, roots, targets: dict[int, object],
         for event in getattr(clip, "m_Events", None) or []:
             shown = RENDERER_EVENTS.get(event.functionName)
             index = int(event.intParameter)
-            if shown is None or not 0 <= index < len(children):
+            if shown is None or not 0 <= index < len(children) or children[index] is None:
                 continue
-            target = obj_key(children[index])
-            if target in wanted:
-                events[target][key][float(event.time)] = shown
+            events[obj_key(children[index])][key][float(event.time)] = shown
         try:
             active = active_curves(clip)
         except Exception as e:
@@ -560,7 +590,7 @@ def visibility_tracks(clips, roots, targets: dict[int, object],
             continue
         for path, track in active.items():
             transform = targets.get(path)
-            if transform is not None and obj_key(transform) in wanted:
+            if transform is not None:
                 curves[obj_key(transform)][key].update(track)
     return ({target: dict(by_clip) for target, by_clip in events.items()},
             {target: dict(by_clip) for target, by_clip in curves.items()})
@@ -614,31 +644,125 @@ def mesh_node(scene: Scene, data: MeshData) -> int:
     return data.node
 
 
-def plan_faces(scene: Scene, model: ModelData, roots, clips,
-               targets: dict[int, object]) -> None:
-    """Settle which face the character wears, and give the rest a way to fold.
+def plan_switches(scene: Scene, model: ModelData, children: list, off: set, clips,
+                  targets: dict[int, object], parents: dict[int, int]) -> None:
+    """Settle what the clips switch on and off, and give each mesh a way to fold.
 
-    Each face gets one morph target that pulls every vertex onto the mesh's
-    centre, as the mouth quads do; only faces are switched this way, so a
-    misread index can never take her head off.
+    Each switched mesh gets one morph target that pulls every vertex onto the
+    mesh's centre, as the mouth quads do.  Faces are settled as a set, one worn
+    at a time; anything else is on or off as its own track says, and takes
+    the meshes beneath it in `parents`, the hierarchy as the prefab has it.
+    The objects in `off` start switched off.
+
+    A clip that switches off every skinned mesh but the faces and mouth makes the
+    character vanish, as Izuna does in her EX.  A fold cannot do that: a
+    skinned vertex pulled to the centre still follows its own bones, so the
+    mesh smears into a sheet between them, and the halo stays up.  Such
+    clips keep everything as it is at rest.
     """
-    if len(model.face_meshes) < 2:
-        return
-    events, curves = visibility_tracks(clips, roots, targets, set(model.face_meshes))
-    for key, index in model.face_meshes.items():
-        data = model.meshes[index]
-        data.morph = (data.positions.mean(axis=0) - data.positions).astype(np.float32)
-        model.face_nodes[key] = mesh_node(scene, data)
-    model.face_default = everyday_face(model)
-    model.face_tracks = merge_tracks(events, curves)
+    events, curves = visibility_tracks(clips, children, targets)
+    if len(model.face_meshes) >= 2:
+        for key, index in model.face_meshes.items():
+            fold(scene, model.meshes[index])
+            model.face_nodes[key] = model.meshes[index].node
+        model.face_default = everyday_face(model)
+    tracks = merge_tracks(events, curves)
+    model.face_tracks = tracks
     # Events that disagree with the character about her rest face are indexing
     # something this cannot see; drop them and keep the everyday face.
     idle = next((clip for clip in clips
                  if clip_name(clip.m_Name, model.name) == DEFAULT_CLIP), None)
-    if idle is not None and worn_face(model, obj_key(idle))[0][1] != model.face_default:
-        model.face_tracks = merge_tracks(curves)
+    if (model.face_nodes and idle is not None
+            and worn_face(model, obj_key(idle))[0][1] != model.face_default):
+        model.face_tracks = tracks = merge_tracks(curves)
     for key, node in model.face_nodes.items():
         scene.nodes[node]["weights"] = [0.0 if key == model.face_default else 1.0]
+
+    # Everything else a clip switches off: whatever meshes hang under it.
+    tracks = {key: {} for key in off} | tracks
+    nodes = {obj_key(t): scene.find(t) for t in [*children, *targets.values()]
+             if t is not None and obj_key(t) in tracks}
+    mouth = scene.find_key(model.mouth_owner)
+    carried = {}
+    for key, by_clip in tracks.items():
+        if key in model.face_meshes or nodes.get(key) is None:
+            continue
+        rest = state_at(by_clip.get(obj_key(idle), {}) if idle is not None else {}, 0.0,
+                        key not in off)
+        if rest and not any(False in track.values() for track in by_clip.values()):
+            continue  # never switched off
+        meshes = [data for data in model.meshes
+                  if data.owner is not None and data.morph is None
+                  and nodes[key] in chain(data.owner, parents)]
+        if mouth is not None and nodes[key] in chain(mouth, parents):
+            model.mouth_switch = key
+        if not meshes and model.mouth_switch != key:
+            continue
+        model.switch_tracks[key] = by_clip
+        model.switch_rest[key] = rest
+        carried[key] = {id(data) for data in meshes}
+        model.switch_nodes[key] = [fold(scene, data) for data in meshes]
+        for node in model.switch_nodes[key]:
+            scene.nodes[node]["weights"] = [0.0 if rest else 1.0]
+
+    faces = {id(model.meshes[index]) for index in model.face_meshes.values()}
+    mouths = set(model.mouth_nodes.values())
+    skinned = {id(data) for data in model.meshes
+               if data.skin is not None and id(data) not in faces and data.node not in mouths}
+    for clip_key in {clip for by_clip in model.switch_tracks.values() for clip in by_clip}:
+        for time in sorted({0.0} | {t for by_clip in model.switch_tracks.values()
+                                    for t in by_clip.get(clip_key, {})}):
+            folded = set().union(*(carried[key] for key, by_clip in model.switch_tracks.items()
+                                   if not state_at(by_clip.get(clip_key, {}), time,
+                                                   model.switch_rest[key])))
+            if skinned and skinned <= folded:
+                model.vanish_clips.add(clip_key)
+                break
+
+
+def fold(scene: Scene, data: MeshData) -> int:
+    """Give a mesh the morph target that folds it to a point; its node."""
+    data.morph = (data.positions.mean(axis=0) - data.positions).astype(np.float32)
+    return mesh_node(scene, data)
+
+
+def chain(index: int | None, parents: dict[int, int]):
+    """The node and its ancestors."""
+    while index is not None:
+        yield index
+        index = parents.get(index)
+
+
+def state_at(track: dict[float, bool], time: float, start: bool) -> bool:
+    """Whether a track has its object on at a time, starting from `start`."""
+    shown = start
+    for moment in sorted(track):
+        if moment > time:
+            break
+        shown = track[moment]
+    return shown
+
+
+def switch_track(model: ModelData, key: tuple, clip_key: tuple) -> list[tuple[float, bool]]:
+    """[(time, shown)] for one switched object, through one clip."""
+    track = ({} if clip_key in model.vanish_clips
+             else model.switch_tracks[key].get(clip_key, {}))
+    rest = model.switch_rest[key]
+    return [(time, state_at(track, time, rest))
+            for time in sorted({0.0} | {t for t in track if t > 0.0})]
+
+
+def switch_channels(model: ModelData, clip) -> list[Channel]:
+    """Morph weights that fold away the meshes a clip has switched off."""
+    channels = []
+    for key, nodes in model.switch_nodes.items():
+        track = switch_track(model, key, obj_key(clip))
+        if all(shown == model.switch_rest[key] for _, shown in track):
+            continue  # three.js restores the rest weight
+        times = np.array([time for time, _ in track], dtype=np.float32)
+        values = np.array([[float(not shown)] for _, shown in track], dtype=np.float32)
+        channels += [Channel(node, "weights", times, values, "STEP") for node in nodes]
+    return channels
 
 
 def everyday_face(model: ModelData) -> tuple:
@@ -692,7 +816,8 @@ def add_clips(scene: Scene, model: ModelData, clips, targets: dict[int, object])
             continue
         if not channels:  # a camera track, or a clip for a rig not carried
             continue
-        channels += mouth_channels(model, clip) + face_channels(model, clip)
+        channels += (mouth_channels(model, clip) + face_channels(model, clip)
+                     + switch_channels(model, clip))
         model.animations.append(Animation(clip_name(clip.m_Name, model.name), channels,
                                           bound_transforms(clip, targets, scene)))
 
@@ -710,8 +835,8 @@ def mouth_channels(model: ModelData, clip) -> list[Channel]:
     keys = [(time, tile) for time, tile in keys if tile in model.mouth_nodes]
     if not keys or keys[0][0] > 0.0:
         keys.insert(0, (0.0, model.mouth_default))
-    if model.mouth_owner in model.face_nodes:
-        keys = without_face(model, clip, keys)
+    if model.mouth_owner in model.face_nodes or model.mouth_switch is not None:
+        keys = without_owner(model, clip, keys)
     times = np.array([time for time, _ in keys], dtype=np.float32)
     return [
         Channel(node, "weights", times,
@@ -721,18 +846,25 @@ def mouth_channels(model: ModelData, clip) -> list[Channel]:
     ]
 
 
-def without_face(model: ModelData, clip,
-                 keys: list[tuple[float, int]]) -> list[tuple[float, int | None]]:
-    """The mouth track, blanked out over the stretches another face is worn:
-    a tile of None folds all the quads away."""
-    worn = worn_face(model, obj_key(clip))
+def without_owner(model: ModelData, clip,
+                  keys: list[tuple[float, int]]) -> list[tuple[float, int | None]]:
+    """The mouth track, blanked out over the stretches the mesh it came off is
+    not showing -- another face worn, or the mesh switched off: a tile of None
+    folds all the quads away."""
+    showing = []
+    if model.mouth_owner in model.face_nodes:
+        showing.append([(time, face == model.mouth_owner)
+                        for time, face in worn_face(model, obj_key(clip))])
+    if model.mouth_switch is not None:
+        showing.append(switch_track(model, model.mouth_switch, obj_key(clip)))
 
     def at(track, time, first):
         return next((value for moment, value in reversed(track) if moment <= time), first)
 
+    times = {t for t, _ in keys}.union(*({t for t, _ in track} for track in showing))
     return [(time, at(keys, time, keys[0][1])
-             if at(worn, time, worn[0][1]) == model.mouth_owner else None)
-            for time in sorted({t for t, _ in keys} | {t for t, _ in worn})]
+             if all(at(track, time, track[0][1]) for track in showing) else None)
+            for time in sorted(times)]
 
 
 def is_rest(values: np.ndarray, rest: list[float]) -> bool:
@@ -841,6 +973,14 @@ class ModelData:
     face_tracks: dict[tuple, dict[tuple, dict[float, bool]]] = field(default_factory=dict)
     face_nodes: dict[tuple, int] = field(default_factory=dict)
     face_default: tuple | None = None
+    # other GameObjects the clips switch on and off, keyed like the faces:
+    # each one's track per clip, whether it is on at rest, and the nodes of
+    # the meshes it carries
+    switch_tracks: dict[tuple, dict[tuple, dict[float, bool]]] = field(default_factory=dict)
+    switch_rest: dict[tuple, bool] = field(default_factory=dict)
+    switch_nodes: dict[tuple, list[int]] = field(default_factory=dict)
+    mouth_switch: tuple | None = None           # the switch carrying the mouth
+    vanish_clips: set = field(default_factory=set)  # clips left at rest, see plan_switches
 
 
 def build_skin(scene: Scene, renderer, mesh) -> Skin | None:
@@ -1366,11 +1506,6 @@ def mark_props(scene: Scene, model: ModelData) -> None:
     bones = {joint for skin in model.skins for joint in skin.joints}
     driven = [{channel.node for channel in anim.channels} for anim in model.animations]
 
-    def chain(index: int):
-        while index is not None:
-            yield index
-            index = parents.get(index)
-
     # the mouth quads answer this the same way the body does
     props: list[tuple[int, set[int], set[int]]] = []
     for i, mesh in enumerate(model.meshes):
@@ -1382,7 +1517,7 @@ def mark_props(scene: Scene, model: ModelData) -> None:
         # A mesh on a bone is out whenever a clip binds it, still or not; a
         # mesh the rig does not carry at all is placed by its own curves or
         # not at all, so it goes by which clips drive it instead.
-        rigged = any(node in bones for index in nodes for node in chain(index))
+        rigged = any(node in bones for index in nodes for node in chain(index, parents))
         if not rigged and stands_on_floor(scene, parents, mesh):
             continue
         out = [anim.bound if rigged else drive
@@ -1416,8 +1551,9 @@ def mark_props(scene: Scene, model: ModelData) -> None:
 
 
 def extract(env, name: str, animations: bool = True,
-            prefab_halo=None) -> tuple[Scene, ModelData]:
+            runtime=None) -> tuple[Scene, ModelData]:
     scene = Scene()
+    prefab_halo = character_halo(runtime)
     model = ModelData(name=name)
     roots = model_roots(env, name)
     # the expression track decides how many copies of the mouth quad are needed
@@ -1439,9 +1575,11 @@ def extract(env, name: str, animations: bool = True,
             print(f"  skipped a renderer: {type(e).__name__}: {e}")
 
     if model.meshes:
+        parents = scene.parents()  # before the halo moves to the head
         attach_halo(scene, roots, prefab_halo)
         # a model with no clips still wears one face, not all of them
-        plan_faces(scene, model, roots, clips, targets)
+        plan_switches(scene, model, *switch_children(roots, runtime, prefab_halo),
+                      clips, targets, parents)
     if model.meshes and targets:
         add_clips(scene, model, clips, targets)
         mark_props(scene, model)
@@ -1780,12 +1918,12 @@ def model_names(bundles: list[str]) -> dict[str, str]:
     return names
 
 
-def character_halo(bundle_dir: Path, name: str):
-    """Read the halo assembly from the runtime character prefab.
+def runtime_prefab(bundle_dir: Path, name: str):
+    """The root Transform of the character prefab the game instantiates.
 
-    Costume prefabs can reference another character's halo. Load their bundles
-    separately so runtime rigs and cut-in clips do not enter the model export.
-    The normal prefab's HaloRoot supplies both those references and placement.
+    Its bundles are loaded separately so runtime rigs and cut-in clips do not
+    enter the model export.  Only its halo and the order of its children are
+    read.
     """
     files = sorted(bundle_dir.glob(f"character-{name}-_mxload-*.bundle"))
     if not files:
@@ -1800,14 +1938,23 @@ def character_halo(bundle_dir: Path, name: str):
             if path.lower() != expected:
                 continue
             for component in entry.asset.read().m_Component:
-                if component.component.type.name != "Transform":
-                    continue
-                halo = find_transform(component.component.read(), "HaloRoot")
-                if halo is not None:
-                    renderers = []
-                    renderers_under(halo, renderers)
-                    if renderers:
-                        return halo
+                if component.component.type.name == "Transform":
+                    return component.component.read()
+    return None
+
+
+def character_halo(runtime):
+    """The halo assembly of the runtime character prefab.
+
+    Costume prefabs can reference another character's halo.  The prefab's
+    HaloRoot supplies both those references and placement.
+    """
+    halo = find_transform(runtime, "HaloRoot") if runtime is not None else None
+    if halo is not None:
+        renderers = []
+        renderers_under(halo, renderers)
+        if renderers:
+            return halo
     return None
 
 
@@ -1822,8 +1969,8 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
         return None
     env = UnityPy.load(*[str(f) for f in files])
     resolve_dependencies(env, bundle_dir)
-    prefab_halo = character_halo(bundle_dir, name)
-    scene, model = extract(env, name, animations, prefab_halo)
+    runtime = runtime_prefab(bundle_dir, name)
+    scene, model = extract(env, name, animations, runtime)
     if not model.skins:
         # A few legacy sets retain only a loose weapon; the complete Model
         # prefab is in the preload bundles, loaded only for the affected export.
@@ -1832,7 +1979,7 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
             print("  no skinned character rig in Model/; trying preload bundle")
             for bundle in prolog:
                 env.load_file(str(bundle))
-            scene, model = extract(env, name, animations, prefab_halo)
+            scene, model = extract(env, name, animations, runtime)
     if not model.meshes:
         print(f"  no meshes found for {name}")
         return None

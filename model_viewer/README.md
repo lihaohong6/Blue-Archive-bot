@@ -239,22 +239,41 @@ single line has its mouth painted on. Each face gets the mouth quad's treatment 
 one morph target folding it to a point — and every face but the one being worn is
 held at weight 1.
 
-**Switching faces.** A clip swaps faces in one of two ways. It either animates
-the GameObject's active flag, a generic binding with `attribute` 2086281974 —
-`crc32("m_IsActive")` — which names its target by path like any other binding and
-so is never in doubt, or it fires `AniEvt_EnableChildRenderer(i)` /
-`AniEvt_DisableChildRenderer(i)`, where `i` is a place in a list the game builds
-at load time and the prefab does not record. Reading that number as an index into
-the model root's children is right for most characters and wrong for a few, and
-nothing in the bundles settles it: the build is il2cpp, and the prefab roots carry
-only a Transform and an Animator. So the numbers are checked against the character
-herself. Every face ships switched on and the clips switch the spare ones off, so
-the face worn at a given moment is whichever one a clip leaves on by itself; if
-reading the idle clip that way puts her in her everyday face, the events are
-believed and the clips swap faces as they should, and if it does not, they are
-indexing something invisible here and are dropped, leaving her in her everyday
-face throughout. Three characters — Kasumi, Neru (School Uniform) and Hasumi
-(Swimsuit) — fall on the second side today; the rest are read as written.
+**Switching parts.** Faces are not the only thing a clip switches: Toki trades
+one body for another between her two forms, Hoshino (Swimsuit) and Arisu (Battle)
+swap between body meshes, Megu puts her weapon away in the cafe, and Makoto keeps
+a spare hairdo that is never meant to show. A clip switches an object in one of
+two ways. It either animates the GameObject's active flag, a generic binding with
+`attribute` 2086281974 — `crc32("m_IsActive")` — which names its target by path
+like any other binding and so is never in doubt, or it fires
+`AniEvt_EnableChildRenderer(i)` / `AniEvt_DisableChildRenderer(i)`, which flip the
+`enabled` flag of the renderer on the `i`th child of the character's root. That
+root is not the model FBX's but the runtime prefab's — the
+`character-<name>-_mxload-*` bundle, container path
+`assets/_mx/addressableasset/character/<name>/<name>.prefab` — which the game
+instantiates in its place. It lists the same children in a different order,
+renderers first and then bones and halo, so the exporter walks the runtime prefab's
+children and matches each back by name to the object it exported. Reading the
+index against the FBX's own children lands on the wrong object for some
+characters; Makoto's hairdo, left showing as a grey lump behind her head, was the
+visible case. The runtime prefab also saves each renderer's starting `enabled`
+flag, and a few start off: Toki's second body, Kisaki's weapon and cutin table,
+Yuzu (Battle)'s prop, and some spare faces.
+
+Each switched object gets the mouth quad's fold on every mesh beneath it. Its rest
+weight is its state at the start of the idle clip, starting from the runtime
+prefab's flag, and a clip carries a `STEP` weight channel only where it differs
+from that. A clip that switches off every skinned mesh except the faces and mouth,
+making the whole character vanish, is left at rest instead. Izuna's and Haruka (New
+Year)'s EX clips do this. The fold cannot hide her completely: a skinned vertex
+pulled to the centre still follows its own bones, so the body smears into a sheet,
+and the halo stays up. Faces are settled as a set, one worn at a time: every face ships
+switched on and the clips switch the spare ones off, so the face worn at a given
+moment is whichever one a clip leaves on by itself. As a guard, if reading the idle
+clip that way does not put the character in her everyday face, her events are
+dropped and only the active-flag curves are kept; no character trips it today.
+Objects the runtime prefab stores as inactive GameObjects, such as Hoshino's
+shield, are left to the prop handling above.
 
 **Animations.** The clips are Mecanim, not legacy, so there are no
 `m_RotationCurves` to read — every float curve is packed into
@@ -278,10 +297,6 @@ glTF samplers at their native key times.
   overrides it with a separate lipsync layer driven by the voice data, which is
   not in the model bundles, so what is exported is what you see in unvoiced
   contexts such as the lobby and in battle.
-- Where a character's face events are dropped, she keeps her everyday face for
-  every clip: Kasumi's eyes never turn to stars, Neru never puts the glasses on.
-  Reading the index would need the renderer list the game builds at load time,
-  which is in `GameAssembly.dll` rather than in the bundles.
 - Apart from the mouth atlas, only `_MainTex` is used. The game's toon shader
   also relies on mask and specular textures, so shading is flat;
   `data-shading="unlit"` in the viewer is the closest cheap approximation.
