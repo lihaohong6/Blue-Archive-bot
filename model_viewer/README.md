@@ -34,7 +34,41 @@ then the other shared cafe and formation clips, EX/cutin clips, and the usual
 combat states. Character-specific clips follow alphabetically. The viewer opens
 `Cafe_Reaction` when it is present.
 
-## What it does
+## Wiki manifest
+
+From the bot repository root:
+
+```sh
+python -m model_viewer.save_manifest --dry-run
+python -m model_viewer.save_manifest
+```
+
+The second command saves `Module:ModelViewer/data.json` using the configured
+pywikibot account. The manifest reads `models/models.json` and groups costumes
+and alternate rigs by character. Animations are embedded in each GLB; no
+separate clip manifest is needed. `Module:ModelViewer` itself is maintained on
+the wiki, not in this repository.
+
+GLBs are expected at the root of `lihaohong6/BlueArchiveModels`, served through
+`https://cdn.jsdelivr.net/gh/lihaohong6/BlueArchiveModels@main/`.
+The files must be published there separately. Use `--base URL` to change the
+directory or pin a repository revision instead of using jsDelivr's cached branch.
+
+With the ModelViewer gadget enabled on the wiki, invoke the module directly:
+
+```wikitext
+{{#invoke:ModelViewer|character|Aru}}
+{{#invoke:ModelViewer|model|Aru (New Year)}}
+{{#invoke:ModelViewer|all}}
+```
+
+`character` offers every exported variant, `model` selects one exact export,
+and `all` creates a viewer per character with click-to-load behavior. Viewer
+options such as `height`, `camera`, and `anim-default` can be passed as named
+arguments. The module is adapted from
+[Stella Sora's module, revision 34049](https://stellasora.miraheze.org/wiki/Module:ModelViewer?oldid=34049).
+
+## Export details
 
 **Names.** Bundles are named for the dev's own character codes — `ch0069`,
 `aru_newyear`, `shiroko_ridingsuit` — so each model is written out under the
