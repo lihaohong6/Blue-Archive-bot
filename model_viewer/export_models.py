@@ -675,11 +675,12 @@ def switch_children(roots, runtime, prefab_halo=None) -> tuple[list, set]:
     The number is an index into the children of the runtime prefab the game
     instantiates, which orders them differently from the model FBX -- the
     renderers first, then the bones and the halo.  Each is matched back by
-    name to the object exported here, the halo being exported from the
-    runtime prefab itself; None where nothing was.  The events flip the
-    renderer's enabled flag, which the runtime prefab sets off for a few
-    spare bodies and props the FBX has on.  Without a runtime prefab, the
-    model root's own children are the best guess.
+    name to the object exported here; None where nothing was, or where the
+    child has no renderer of its own for the event to flip, as `HaloRoot`
+    and `bone_root` do not.  The events flip the renderer's enabled flag,
+    which the runtime prefab sets off for a few spare bodies and props the
+    FBX has on.  Without a runtime prefab, the model root's own children are
+    the best guess.
     """
     if not roots:
         return [], set()
@@ -692,27 +693,26 @@ def switch_children(roots, runtime, prefab_halo=None) -> tuple[list, set]:
     children, off = [], set()
     for child in runtime.m_Children:
         game_object = child.read().m_GameObject.read()
-        children.append(by_name.get(game_object.m_Name))
-        if children[-1] is not None and any(
-                pair.component.type.name in ("SkinnedMeshRenderer", "MeshRenderer")
-                and not pair.component.read().m_Enabled
-                for pair in game_object.m_Component):
+        renderers = [pair.component.read() for pair in game_object.m_Component
+                     if pair.component.type.name in ("SkinnedMeshRenderer", "MeshRenderer")]
+        children.append(by_name.get(game_object.m_Name) if renderers else None)
+        if children[-1] is not None and not all(r.m_Enabled for r in renderers):
             off.add(obj_key(children[-1]))
     return children, off
 
 
-def visibility_tracks(clips, children: list, targets: dict[int, object]) -> tuple[dict, dict]:
+def visibility_tracks(clips, children_of, targets: dict[int, object]) -> tuple[dict, dict]:
     """The event tracks and the curve tracks, each {object: {clip: {time: shown}}}.
 
     A clip switches an object either by an AniEvt event, whose number is an
-    index into `children`, or by animating the GameObject's active flag, which
+    index into `children_of(clip)`, or by animating the GameObject's active flag, which
     is never in doubt.  The two are kept apart for plan_switches to weigh.
     Later events at the same time win.
     """
     events: dict[tuple, dict[tuple, dict[float, bool]]] = defaultdict(lambda: defaultdict(dict))
     curves: dict[tuple, dict[tuple, dict[float, bool]]] = defaultdict(lambda: defaultdict(dict))
     for clip in clips:
-        key = obj_key(clip)
+        key, children = obj_key(clip), children_of(clip)
         for event in getattr(clip, "m_Events", None) or []:
             shown = RENDERER_EVENTS.get(event.functionName)
             index = int(event.intParameter)
@@ -781,14 +781,17 @@ def mesh_node(scene: Scene, data: MeshData) -> int:
 
 
 def plan_switches(scene: Scene, model: ModelData, children: list, off: set, clips,
-                  targets: dict[int, object], parents: dict[int, int]) -> None:
+                  targets: dict[int, object], parents: dict[int, int],
+                  cafe_children: list | None = None) -> None:
     """Settle what the clips switch on and off, and give each mesh a way to fold.
 
     Each switched mesh gets one morph target that pulls every vertex onto the
     mesh's centre, as the mouth quads do.  Faces are settled as a set, one worn
     at a time; anything else is on or off as its own track says, and takes
     the meshes beneath it in `parents`, the hierarchy as the prefab has it.
-    The objects in `off` start switched off.
+    The objects in `off` start switched off.  `cafe_children` is what the
+    cafe clips count through, when the cafe prefab drives this same body but
+    orders its children differently.
 
     A clip that switches off every skinned mesh but the faces and mouth makes the
     character vanish, as Izuna does in her EX.  A fold cannot do that: a
@@ -796,7 +799,12 @@ def plan_switches(scene: Scene, model: ModelData, children: list, off: set, clip
     mesh smears into a sheet between them, and the halo stays up.  Such
     clips keep everything as it is at rest.
     """
-    events, curves = visibility_tracks(clips, children, targets)
+    def children_of(clip) -> list:
+        if cafe_children is not None and is_cafe_clip(clip, model.name):
+            return cafe_children
+        return children
+
+    events, curves = visibility_tracks(clips, children_of, targets)
     if len(model.face_meshes) >= 2:
         for key, index in model.face_meshes.items():
             fold(scene, model.meshes[index])
@@ -816,7 +824,8 @@ def plan_switches(scene: Scene, model: ModelData, children: list, off: set, clip
 
     # Everything else a clip switches off: whatever meshes hang under it.
     tracks = {key: {} for key in off} | tracks
-    nodes = {obj_key(t): scene.find(t) for t in [*children, *targets.values()]
+    nodes = {obj_key(t): scene.find(t) for t in [*children, *(cafe_children or []),
+                                                 *targets.values()]
              if t is not None and obj_key(t) in tracks}
     mouth = scene.find_key(model.mouth_owner)
     carried = {}
@@ -857,7 +866,15 @@ def plan_switches(scene: Scene, model: ModelData, children: list, off: set, clip
 
 
 def fold(scene: Scene, data: MeshData) -> int:
-    """Give a mesh the morph target that folds it to a point; its node."""
+    """Give a mesh the morph target that folds it to a point; its node.
+
+    A skinned vertex still follows its own bones once folded, so the point
+    tears into shards as the pose leaves the bind pose, the further the more
+    bones the mesh spans.  Folding each vertex onto its own bone instead
+    leaves a web between the bones even at rest, and is worse for the faces
+    the clips swap, which hang off the head alone.  A clip that keeps a mesh
+    off throughout hides it outright as well; see `write_glb`.
+    """
     data.morph = (data.positions.mean(axis=0) - data.positions).astype(np.float32)
     return mesh_node(scene, data)
 
@@ -960,8 +977,13 @@ def add_clips(scene: Scene, model: ModelData, clips, targets: dict[int, object])
             continue
         channels += (mouth_channels(model, clip) + face_channels(model, clip)
                      + switch_channels(model, clip))
+        # a folded skinned mesh tears into shards once the pose leaves the
+        # bind pose, so a switch off the whole clip is also hidden outright
+        hides = [key for key in model.switch_nodes
+                 if not any(shown for _, shown in switch_track(model, key, obj_key(clip)))]
         model.animations.append(Animation(clip_name(clip.m_Name, model.name), channels,
-                                          bound_transforms(clip, targets, scene)))
+                                          bound_transforms(clip, targets, scene),
+                                          hides=hides))
 
 
 def mouth_channels(model: ModelData, clip) -> list[Channel]:
@@ -1039,6 +1061,12 @@ def clip_name(name: str, character: str) -> str:
     return name
 
 
+def is_cafe_clip(clip, character: str) -> bool:
+    """Whether the game plays a clip on the cafe prefab.  Both prefabs share
+    one controller, so only the name tells."""
+    return clip_name(clip.m_Name, character).lower().startswith("cafe_")
+
+
 def animation_sort_key(name: str) -> tuple[int, str]:
     """Sort shared player-facing clips before character-specific ones."""
     name = name.casefold()
@@ -1068,6 +1096,7 @@ class Animation:
     channels: list[Channel]
     bound: set[int] = field(default_factory=set)   # nodes the clip names at all
     shows: list[str] = field(default_factory=list)  # prop groups it switches on
+    hides: list[tuple] = field(default_factory=list)  # switches off the whole clip
 
 
 @dataclass
@@ -1698,9 +1727,10 @@ def mark_props(scene: Scene, model: ModelData) -> None:
 
 
 def extract(env, name: str, animations: bool = True, runtime=None, rig: str = "",
-            keep_clip=None) -> tuple[Scene, ModelData]:
+            keep_clip=None, cafe_runtime=None) -> tuple[Scene, ModelData]:
     """The scene and model of one rig; `keep_clip`, given a clip, says whether
-    it is this rig's when the bundle holds clips of another body."""
+    it is this rig's when the bundle holds clips of another body.
+    `cafe_runtime` is the cafe prefab, when it drives this same body."""
     scene = Scene()
     prefab_halo = character_halo(runtime)
     model = ModelData(name=name)
@@ -1728,8 +1758,10 @@ def extract(env, name: str, animations: bool = True, runtime=None, rig: str = ""
         parents = scene.parents()  # before the halo moves to the head
         attach_halo(scene, roots, prefab_halo)
         # a model with no clips still wears one face, not all of them
+        cafe_children = (switch_children(roots, cafe_runtime, prefab_halo)[0]
+                         if cafe_runtime is not None else None)
         plan_switches(scene, model, *switch_children(roots, runtime, prefab_halo),
-                      clips, targets, parents)
+                      clips, targets, parents, cafe_children)
     if model.meshes and targets:
         add_clips(scene, model, clips, targets)
         mark_props(scene, model)
@@ -1938,6 +1970,21 @@ def write_glb(scene: Scene, model: ModelData, path: Path) -> None:
             # data-hide-parts looks; the group key is what a clip's show names
             node["extras"] = {"optional": True, data.group: True}
 
+    # A switch answers to a made-up name, as a prop group does, unless its
+    # nodes carry meshes it does not switch: hiding a node hides its subtree.
+    switch_names = {}
+    for i, (key, indices) in enumerate(model.switch_nodes.items()):
+        subtree, stack = set(), list(indices)
+        while stack:
+            index = stack.pop()
+            subtree.add(index)
+            stack += nodes[index].get("children", [])
+        if any("mesh" in nodes[index] and index not in indices for index in subtree):
+            continue
+        switch_names[key] = f"switch{i}"
+        for index in indices:
+            nodes[index].setdefault("extras", {})[switch_names[key]] = True
+
     animations = []
     for anim in model.animations:
         samplers, channels = [], []
@@ -1950,10 +1997,11 @@ def write_glb(scene: Scene, model: ModelData, path: Path) -> None:
             channels.append({"sampler": len(samplers) - 1,
                              "target": {"node": channel.node, "path": channel.path}})
         entry = {"name": anim.name, "samplers": samplers, "channels": channels}
-        if anim.shows:
+        hides = [switch_names[key] for key in anim.hides if key in switch_names]
+        if anim.shows or hides:
             # GLTFLoader copies these onto AnimationClip.userData as this
-            # clip's show rule
-            entry["extras"] = {"show": anim.shows}
+            # clip's show and hide rules
+            entry["extras"] = {k: v for k, v in (("show", anim.shows), ("hide", hides)) if v}
         animations.append(entry)
 
     gltf = {
@@ -2158,7 +2206,11 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
     cafe_roots = model_roots(env, name, CAFE_RIG)
     cafe_avatar = runtime_avatar(runtimes.get(CAFE_RIG))
     is_cafe = keep_clip = None
+    # the cafe clips play on the main body through the cafe prefab, whose
+    # children their renderer events count through
+    cafe_runtime = runtimes.get(CAFE_RIG)
     if cafe_roots and cafe_avatar not in (None, runtime_avatar(runtime)):
+        cafe_runtime = None  # unless they get a model of their own
         main_targets = animation_targets(model_roots(env, name))
         cafe_targets = animation_targets(cafe_roots)
 
@@ -2167,7 +2219,8 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
 
         def keep_clip(clip) -> bool:
             return not is_cafe(clip)
-    scene, model = extract(env, name, animations, runtime, keep_clip=keep_clip)
+    scene, model = extract(env, name, animations, runtime, keep_clip=keep_clip,
+                           cafe_runtime=cafe_runtime)
     if not model.skins:
         # A few legacy sets retain only a loose weapon; the complete Model
         # prefab is in the preload bundles, loaded only for the affected export.
@@ -2176,7 +2229,8 @@ def export(bundle_dir: Path, name: str, out: Path, animations: bool = True,
             print("  no skinned character rig in Model/; trying preload bundle")
             for bundle in prolog:
                 env.load_file(str(bundle))
-            scene, model = extract(env, name, animations, runtime, keep_clip=keep_clip)
+            scene, model = extract(env, name, animations, runtime, keep_clip=keep_clip,
+                                   cafe_runtime=cafe_runtime)
     if not model.meshes:
         print(f"  no meshes found for {name}")
         return None

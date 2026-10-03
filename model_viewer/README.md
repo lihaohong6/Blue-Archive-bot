@@ -107,8 +107,11 @@ model, `<label> (Cafe).glb`, built from the `<name>_CafeOnly` runtime prefab.
 Both runtime controllers list the cafe clips, so they cannot assign them.
 Instead, each clip goes to the rig whose Avatar resolves more of its bindings,
 and ties go to the main body. Niko, Kurumi and Otogi also ship a `_CafeOnly`
-prefab. Theirs drives the main Avatar and adds only an event prop, so they
-export as one model.
+prefab. Theirs drives the main Avatar, so they export as one model. It orders
+its children differently, though, so a cafe clip's renderer events (see
+*Switching parts*) count through the cafe prefab's children; reading them
+against the main prefab's took Niko's gloved hands off in the cafe. Both prefabs
+share one controller, so only the `Cafe_` name marks a cafe clip.
 
 **The halo.** The runtime character prefab supplies a `HaloRoot` subtree with
 the intended mesh, material, position and scale. The exporter reads it from
@@ -264,14 +267,27 @@ root is not the model FBX's but the runtime prefab's — the
 `assets/_mx/addressableasset/character/<name>/<name>.prefab` — which the game
 instantiates in its place. It lists the same children in a different order,
 renderers first and then bones and halo, so the exporter walks the runtime prefab's
-children and matches each back by name to the object it exported. Reading the
+children and matches each back by name to the object it exported. A child with
+no renderer of its own, such as `HaloRoot` or `bone_root`, gives the event
+nothing to flip, so the event does nothing. Reading the
 index against the FBX's own children lands on the wrong object for some
 characters; Makoto's hairdo, left showing as a grey lump behind her head, was the
 visible case. The runtime prefab also saves each renderer's starting `enabled`
 flag, and a few start off: Toki's second body, Kisaki's weapon and cutin table,
 Yuzu (Battle)'s prop, and some spare faces.
 
-Each switched object gets the mouth quad's fold on every mesh beneath it. Its rest
+Each switched object gets the mouth quad's fold on every mesh beneath it. A
+skinned vertex still follows its own bones once folded, so the fold tears into
+shards as the pose leaves the bind pose, more so the more bones a mesh spans:
+Niko's spare hands and Tsukuyo's tree costume showed as shards and slabs. So a
+clip that keeps an object off throughout also names it under `hide` in the
+clip's glTF `extras`, and the viewer hides it outright. The name is a made-up
+`switch<n>` key that the object's mesh nodes carry in their own `extras`. A
+switch whose nodes also carry meshes it does not switch gets no key, since
+hiding a node hides its subtree. The fold stays for switches partway through a
+clip and for viewers that ignore `extras`.
+
+A switched object's rest
 weight is its state at the start of the idle clip, starting from the runtime
 prefab's flag, and a clip carries a `STEP` weight channel only where it differs
 from that. A clip that switches off every skinned mesh except the faces and mouth,
