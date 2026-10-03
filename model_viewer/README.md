@@ -293,7 +293,13 @@ evenly sampled *dense*, and *constant*), and `m_ClipBindingConstant` says which
 transform property each run of curves belongs to. `export_models.py` decodes the
 streamed byte stream itself, since UnityPy has no helper for it, and resolves the
 binding path hashes to bones through the Avatar's `m_TOS` table. Curves become
-glTF samplers at their native key times. A rotation is keyed either as a
+glTF samplers at their native key times. Each streamed key carries the cubic
+Unity follows until the next key, so those channels are written as
+`CUBICSPLINE`, with the cubic's slopes as tangents, and play back exactly as
+in-game. Linear interpolation of the key values alone made dangling chains —
+tails, hair, straps — visibly twitch. A cubic can jump at a key, which glTF
+cannot, so a jump gets a second key one float step later. Dense curves and
+channels with only straight segments stay `LINEAR`. A rotation is keyed either as a
 quaternion (binding attribute 2) or as Euler angles in degrees (attribute 4);
 about forty bundles key some clips the second way — Natsu (Band)'s cafe and
 cut-in clips among them. The binding's `customType` is the rotation order, as
@@ -305,8 +311,8 @@ close to Unity's per-angle one.
 
 ## Known gaps
 
-- Animation keys are interpolated linearly. Unity evaluates the same curves as
-  Hermite splines, so fast motion is very slightly flatter than in-game.
+- Euler-keyed rotations are sampled to `LINEAR` quaternion keys rather than
+  carried as cubics.
 - Channels that hold still at the node's rest transform are dropped — three.js
   restores unbound nodes to their rest value, and keeping them roughly tripled
   file size. A viewer that does not restore rest state would need them back.

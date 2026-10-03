@@ -345,11 +345,13 @@ def bindpose_matrix(bp) -> np.ndarray:
 # --------------------------------------------------------------------------
 
 def streamed_frames(streamed):
-    """Decode m_StreamedClip into (time, [(curve index, value), ...]) frames.
+    """Decode m_StreamedClip into (time, [(curve index, coefficients), ...]) frames.
 
     A flat uint32 array: per frame, a float time and a key count, then one
-    (int index, float coeff[4]) record per key, coeff[3] being the value.  The
-    first and last frames are +/- infinity helpers and drop out here.
+    (int index, float coeff[4]) record per key.  The coefficients (a, b, c, d)
+    are the cubic ((a*x + b)*x + c)*x + d, x being the time since the key,
+    which the curve follows until its next key; d is the key's own value.  The
+    first and last frames are +/- FLT_MAX helpers and drop out here.
     """
     raw = np.array(streamed.data, dtype=np.uint32).tobytes()
     offset = 0
@@ -358,40 +360,54 @@ def streamed_frames(streamed):
         offset += 8
         keys = []
         for _ in range(count):
-            index, _c0, _c1, _c2, value = struct.unpack_from("<i4f", raw, offset)
+            index, *coefficients = struct.unpack_from("<i4f", raw, offset)
             offset += 20
-            keys.append((index, value))
-        if np.isfinite(time):
+            keys.append((index, coefficients))
+        if abs(time) < 1e30:
             yield time, keys
 
 
-def clip_keys(clip) -> tuple[dict[int, list[tuple[float, float]]], float]:
-    """{curve index: [(time, value)]} for one AnimationClip, and its stop time.
+def clip_splines(clip) -> tuple[dict[int, np.ndarray], float]:
+    """{curve index: rows of (time, a, b, c, d)} for one AnimationClip, and its
+    stop time.  Each row is a cubic segment as streamed_frames() describes,
+    lasting until the next row.
 
     Mecanim packs the curves into three concatenated arrays -- sparse
-    (streamed), evenly sampled (dense) and constant -- in that order.
+    (streamed), evenly sampled (dense) and constant -- in that order.  Dense
+    curves are interpolated linearly, so their segments are straight lines.
     """
     inner = clip.m_MuscleClip.m_Clip.data
     stop = float(clip.m_MuscleClip.m_StopTime)
 
-    keys: dict[int, list[tuple[float, float]]] = defaultdict(list)
+    rows: dict[int, list] = defaultdict(list)
     for time, frame in streamed_frames(inner.m_StreamedClip):
-        for index, value in frame:
-            keys[index].append((time, value))
+        for index, coefficients in frame:
+            rows[index].append((time, *coefficients))
+    splines = {index: np.array(sorted(r, key=lambda row: row[0])) for index, r in rows.items()}
 
     dense, base = inner.m_DenseClip, inner.m_StreamedClip.curveCount
     if dense.m_CurveCount:
-        samples = np.array(dense.m_SampleArray, dtype=np.float32)
+        samples = np.array(dense.m_SampleArray, dtype=np.float32).astype(np.float64)
         samples = samples.reshape(-1, dense.m_CurveCount)
-        for frame, row in enumerate(samples):
-            time = dense.m_BeginTime + frame / dense.m_SampleRate
-            for j, value in enumerate(row):
-                keys[base + j].append((time, float(value)))
+        times = dense.m_BeginTime + np.arange(len(samples)) / dense.m_SampleRate
+        times = times.astype(np.float32).astype(np.float64)  # as streamed times are
+        slopes = np.zeros_like(samples)
+        slopes[:-1] = np.diff(samples, axis=0) * dense.m_SampleRate
+        zeros = np.zeros(len(samples))
+        for j in range(dense.m_CurveCount):
+            splines[base + j] = np.column_stack([times, zeros, zeros, slopes[:, j], samples[:, j]])
 
     constant = base + dense.m_CurveCount
     for j, value in enumerate(inner.m_ConstantClip.data):
-        keys[constant + j] += [(0.0, float(value)), (stop, float(value))]
-    return keys, stop
+        splines[constant + j] = np.array([[0.0, 0, 0, 0, value], [stop, 0, 0, 0, value]])
+    return splines, stop
+
+
+def clip_keys(clip) -> tuple[dict[int, list[tuple[float, float]]], float]:
+    """{curve index: [(time, value)]} for one AnimationClip, and its stop time."""
+    splines, stop = clip_splines(clip)
+    return {index: [(float(row[0]), float(row[4])) for row in rows]
+            for index, rows in splines.items()}, stop
 
 
 def binding_runs(clip):
@@ -407,38 +423,98 @@ def binding_runs(clip):
         offset += size
 
 
-def clip_curves(clip) -> dict[tuple[int, int], tuple[np.ndarray, np.ndarray]]:
-    """{(transform path hash, binding): (times, values)} for one AnimationClip."""
-    keys, stop = clip_keys(clip)
+def clip_curves(clip) -> dict[tuple[int, int], tuple[str, np.ndarray, np.ndarray]]:
+    """{(transform path hash, binding): (interpolation, times, values)} for one
+    AnimationClip, in glTF sampler terms."""
+    splines, stop = clip_splines(clip)
     curves = {}
     for binding, start, size in binding_runs(clip):
         if binding.typeID != TRANSFORM_CLASS_ID or binding.attribute not in BINDING_SIZE:
             continue
-        components = [sorted(keys.get(start + c, [(0.0, 0.0)])) for c in range(size)]
-        times = sorted({0.0, stop} | {t for c in components for t, _ in c if 0.0 <= t <= stop})
-        values = np.column_stack([
-            np.interp(times, [t for t, _ in c], [v for _, v in c]) for c in components
-        ])
-        attribute = binding.attribute
-        if attribute == BIND_EULER:
-            times, values = subdivided(times, values, components)
-            values = euler_quaternions(values, EULER_ORDERS[binding.customType])
-            attribute = BIND_ROTATION
-        curves[(binding.path, attribute)] = (np.array(times, dtype=np.float32), values)
+        components = [splines.get(start + c, HELD_ZERO) for c in range(size)]
+        times = np.array(sorted({0.0, stop} | {float(t) for c in components
+                                                for t in c[:, 0] if 0.0 <= t <= stop}))
+        if binding.attribute == BIND_EULER:
+            times = subdivided(times, components)
+            degrees = np.column_stack([spline_at(c, times)[0] for c in components])
+            curves[(binding.path, BIND_ROTATION)] = (
+                "LINEAR", times.astype(np.float32),
+                euler_quaternions(degrees, EULER_ORDERS[binding.customType]))
+            continue
+        curves[(binding.path, binding.attribute)] = hermite_keys(components, times, stop)
     return curves
 
 
-def subdivided(times: list[float], values: np.ndarray, components) -> tuple[list[float], np.ndarray]:
+HELD_ZERO = np.zeros((1, 5))  # a curve the clip does not carry
+
+
+def spline_at(rows: np.ndarray, times: np.ndarray,
+              side: str = "right") -> tuple[np.ndarray, np.ndarray]:
+    """Value and slope of a curve's segments at each time.  side="left" takes
+    the limit from before, where a key may jump.  Before its first key a
+    curve holds that key's value."""
+    index = np.searchsorted(rows[:, 0], times, side) - 1
+    before = index < 0
+    row = rows[np.maximum(index, 0)]
+    x = np.where(before, 0.0, times - row[:, 0])
+    _, a, b, c, d = row.T
+    return ((a * x + b) * x + c) * x + d, np.where(before, 0.0, (3 * a * x + 2 * b) * x + c)
+
+
+def hermite_keys(components: list[np.ndarray], times: np.ndarray,
+                 stop: float) -> tuple[str, np.ndarray, np.ndarray]:
+    """(interpolation, times, values) that reproduce a channel's cubics.
+
+    A cubic is fixed by its end values and slopes, so CUBICSPLINE keys with
+    Mecanim's slopes as tangents follow the clip exactly, and splitting a
+    segment where another component has a key loses nothing.  glTF cannot
+    jump at a key, as Mecanim can; a jump gets a second key one float step
+    later.  A channel whose segments are all straight is written LINEAR.
+    """
+    left = [spline_at(c, times, "left") for c in components]
+    right = [spline_at(c, times, "right") for c in components]
+    in_value, in_slope = (np.column_stack(part) for part in zip(*left))
+    out_value, out_slope = (np.column_stack(part) for part in zip(*right))
+    out_value[-1], out_slope[-1] = in_value[-1], in_slope[-1]  # the clip ends there
+    jumps = ~np.isclose(in_value, out_value, rtol=1e-5, atol=1e-5).all(axis=1)
+    jumps[0] = False
+
+    source = np.repeat(np.arange(len(times)), np.where(jumps, 2, 1))
+    later = np.zeros(len(source), dtype=bool)
+    later[1:] = source[1:] == source[:-1]
+    earlier = jumps[source] & ~later
+    key_times = times[source].astype(np.float32)
+    key_times[later] = np.nextafter(key_times[later], np.float32(np.inf))
+    values = np.where(earlier[:, None], in_value[source], out_value[source])
+    if all(is_straight(c, stop) for c in components):
+        return "LINEAR", key_times, values
+    tangents_in = np.where(later[:, None], 0.0, in_slope[source])
+    tangents_out = np.where(earlier[:, None], 0.0, out_slope[source])
+    triples = np.stack([tangents_in, values, tangents_out], axis=1)
+    return "CUBICSPLINE", key_times, triples.reshape(-1, values.shape[1])
+
+
+def is_straight(rows: np.ndarray, stop: float) -> bool:
+    """True if no segment within the clip strays from the straight line
+    between its ends by more than rounding."""
+    ends = np.append(rows[1:, 0], max(stop, rows[-1, 0]))
+    spans = (np.clip(ends, 0.0, stop) - np.clip(rows[:, 0], 0.0, stop))[:, None]
+    x = spans * np.linspace(0.0, 1.0, 9)[1:-1]
+    a, b = rows[:, 1:2], rows[:, 2:3]
+    bend = a * x * (x ** 2 - spans ** 2) + b * x * (x - spans)
+    return bool(np.abs(bend).max(initial=0.0) < 1e-5)
+
+
+def subdivided(times: np.ndarray, components: list[np.ndarray]) -> np.ndarray:
     """Extra keys wherever an angle moves more than EULER_STEP between two."""
+    values = np.column_stack([spline_at(c, times)[0] for c in components])
     steps = np.ceil(np.abs(np.diff(values, axis=0)).max(axis=1, initial=0) / EULER_STEP)
     if not len(steps) or steps.max() <= 1:
-        return times, values
+        return times
     dense = [times[0]]
     for (a, b), n in zip(zip(times, times[1:]), steps):
         dense += list(np.linspace(a, b, max(int(n), 1) + 1)[1:])
-    return dense, np.column_stack([
-        np.interp(dense, [t for t, _ in c], [v for _, v in c]) for c in components
-    ])
+    return np.array(dense)
 
 
 def euler_quaternions(degrees: np.ndarray, order: str) -> np.ndarray:
@@ -855,18 +931,24 @@ def add_clips(scene: Scene, model: ModelData, clips, targets: dict[int, object])
     for clip in clips:
         try:
             channels = []
-            for (path_hash, attribute), (times, values) in clip_curves(clip).items():
+            for (path_hash, attribute), curve in clip_curves(clip).items():
+                interpolation, times, values = curve
                 transform = targets.get(path_hash)
                 if transform is None:
                     continue
                 if attribute == BIND_POSITION:
                     values = values * UNITY_TO_GLTF
                 elif attribute == BIND_ROTATION:
-                    values = normalized_quaternions(values * QUAT_TO_GLTF)
+                    # three.js normalises CUBICSPLINE quaternions after
+                    # interpolating, as Mecanim does
+                    values = values * QUAT_TO_GLTF
+                    if interpolation == "LINEAR":
+                        values = normalized_quaternions(values)
                 node, path = scene.node(transform), GLTF_PATH[attribute]
-                if is_rest(values, scene.nodes[node][path]):
+                if interpolation == "LINEAR" and is_rest(values, scene.nodes[node][path]):
                     continue
-                channels.append(Channel(node, path, times, values.astype(np.float32)))
+                channels.append(Channel(node, path, times, values.astype(np.float32),
+                                        interpolation))
         except Exception as e:
             print(f"  skipped a clip: {type(e).__name__}: {e}")
             continue
