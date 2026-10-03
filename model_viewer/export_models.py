@@ -4,7 +4,8 @@ Reads the Unity asset bundles shipped with the Steam build and writes one
 self-contained glTF binary per character: skinned meshes with embedded
 textures, the bone hierarchy, and every animation clip found alongside them.
 Each file is named for the wiki's name for the character rather than the
-bundle's dev name, through the wiki repo's devname_map tables.
+bundle's dev name, through the wiki repo's devname_map tables and the game's
+costume table.
 
 Usage:
     python export_models.py --list
@@ -46,6 +47,9 @@ MODEL_ASSET_RE = re.compile(r"^assets/_mx/characters/[^/]+/model/", re.I)
 # name for each bundle's dev character code.
 DEVNAME_MAPS = (HERE.parent / "json" / "devname_map.json",
                 HERE.parent / "json" / "devname_map_aux.json")
+# Some bundles are named for a model prefab code the maps lack (`ch0061`); the
+# costume table ties each prefab to costume dev names the maps do know.
+COSTUME_TABLE = HERE.parent / "json" / "CostumeExcelTable.json"
 QUALIFIERS = {"cutin": "Cut-in", "nonweapon": "No Weapon", "scenario": "Scenario",
               "carrier": "Carrier"}
 
@@ -2018,6 +2022,16 @@ def read_devname_map() -> dict[str, str]:
         for dev, entry in json.loads(path.read_text(encoding="utf-8")).items():
             variant = entry["variant"]
             names[dev.lower()] = entry["firstname"] + (f" ({variant})" if variant else "")
+    if not COSTUME_TABLE.exists():
+        print(f"  no {COSTUME_TABLE.name}; run update.py to fetch it")
+        return names
+    costumes = json.loads(COSTUME_TABLE.read_text(encoding="utf-8"))["DataList"]
+    for costume in costumes:
+        prefab = costume["ModelPrefabName"].lower()
+        name = names.get(costume["DevName"].lower().removesuffix("_default"))
+        # NPC and event copies share the prefab; the first costume the maps know wins
+        if prefab and name:
+            names.setdefault(prefab, name)
     return names
 
 

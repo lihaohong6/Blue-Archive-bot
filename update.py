@@ -26,6 +26,7 @@ def db_download():
         "ScenarioBGNameExcelTable.json",
         "ScenarioBGName_GlobalExcelTable.json",
         "BGMExcelTable.json",
+        "CostumeExcelTable.json",
         "LocalizeExcelTable.json",
         "ScenarioCharacterNameExcelTable.json",
         "ScenarioModeExcelTable.json",
