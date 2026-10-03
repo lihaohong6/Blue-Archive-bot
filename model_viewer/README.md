@@ -251,15 +251,20 @@ the everyday one is the one carrying the `_EyeMouth` material, since the mouth t
 clips lip-sync belongs to the face the character talks with; a face kept for a
 single line has its mouth painted on. Each face gets the mouth quad's treatment —
 one morph target folding it to a point — and every face but the one being worn is
-held at weight 1.
+held at weight 1. A face mesh with no other face beside it is switched like any
+other part (below): Tsukuyo's eyes and mouth live on her body mesh, and her one
+face mesh is a closed-eye shell that every clip keeps off through its renderer's
+`enabled` flag, except for closed-eye moments in her EX and one victory pose.
 
 **Switching parts.** Faces are not the only thing a clip switches: Toki trades
 one body for another between her two forms, Hoshino (Swimsuit) and Arisu (Battle)
 swap between body meshes, Megu puts her weapon away in the cafe, and Makoto keeps
 a spare hairdo that is never meant to show. A clip switches an object in one of
-two ways. It either animates the GameObject's active flag, a generic binding with
-`attribute` 2086281974 — `crc32("m_IsActive")` — which names its target by path
-like any other binding and so is never in doubt, or it fires
+two ways. It either animates a flag directly — the GameObject's active flag, a
+generic binding with `attribute` 2086281974 (`crc32("m_IsActive")`), or its
+renderer's `enabled` flag, `typeID` 25 with `attribute` 3305885265
+(`crc32("m_Enabled")`) — which names its target by path like any other binding
+and so is never in doubt, or it fires
 `AniEvt_EnableChildRenderer(i)` / `AniEvt_DisableChildRenderer(i)`, which flip the
 `enabled` flag of the renderer on the `i`th child of the character's root. That
 root is not the model FBX's but the runtime prefab's — the

@@ -114,6 +114,8 @@ RENDERER_EVENTS = {"AniEvt_EnableChildRenderer": True,
 TRANSFORM_CLASS_ID = 4
 GAMEOBJECT_CLASS_ID = 1
 BIND_ACTIVE = 2086281974  # zlib.crc32(b"m_IsActive"), as Mecanim hashes it
+RENDERER_CLASS_IDS = (25, 23, 137)  # Renderer, MeshRenderer, SkinnedMeshRenderer
+BIND_ENABLED = 3305885265  # zlib.crc32(b"m_Enabled")
 # Transform curve bindings, and how many float curves each one spans.  A
 # rotation is keyed either as a quaternion or as Euler angles in degrees.
 BIND_POSITION, BIND_ROTATION, BIND_SCALE, BIND_EULER = 1, 2, 3, 4
@@ -540,17 +542,26 @@ def quaternion_product(a: np.ndarray, b: np.ndarray) -> np.ndarray:
                       aw * bw - np.sum(av * bv, axis=1, keepdims=True)])
 
 
+def is_switch(binding) -> bool:
+    """Whether a binding animates the GameObject's active flag or its
+    renderer's enabled flag, either of which shows or hides it."""
+    return ((binding.typeID == GAMEOBJECT_CLASS_ID and binding.attribute == BIND_ACTIVE)
+            or (binding.typeID in RENDERER_CLASS_IDS and binding.attribute == BIND_ENABLED))
+
+
 def active_curves(clip) -> dict[int, dict[float, bool]]:
     """{transform path hash: {time: shown}}: the clip animates the GameObject's
-    active flag, carried as an ordinary float curve bound to the object."""
-    bindings = clip.m_ClipBindingConstant.genericBindings
-    if not any(b.typeID == GAMEOBJECT_CLASS_ID and b.attribute == BIND_ACTIVE
-               for b in bindings):
+    active flag or its renderer's enabled flag, carried as an ordinary float
+    curve bound to the object."""
+    if not any(is_switch(b) for b in clip.m_ClipBindingConstant.genericBindings):
         return {}  # most clips have none
     keys, _ = clip_keys(clip)
-    return {binding.path: {time: value > 0.5 for time, value in sorted(keys.get(start, []))}
-            for binding, start, _ in binding_runs(clip)
-            if binding.typeID == GAMEOBJECT_CLASS_ID and binding.attribute == BIND_ACTIVE}
+    tracks = defaultdict(dict)
+    for binding, start, _ in binding_runs(clip):
+        if is_switch(binding):
+            tracks[binding.path].update(
+                {time: value > 0.5 for time, value in sorted(keys.get(start, []))})
+    return dict(tracks)
 
 
 def bound_transforms(clip, targets: dict[int, object], scene: Scene) -> set[int]:
@@ -830,7 +841,7 @@ def plan_switches(scene: Scene, model: ModelData, children: list, off: set, clip
     mouth = scene.find_key(model.mouth_owner)
     carried = {}
     for key, by_clip in tracks.items():
-        if key in model.face_meshes or nodes.get(key) is None:
+        if key in model.face_nodes or nodes.get(key) is None:
             continue
         rest = state_at(by_clip.get(obj_key(idle), {}) if idle is not None else {}, 0.0,
                         key not in off)
