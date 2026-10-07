@@ -1,3 +1,7 @@
+> [!WARNING]
+> This submodule of Blue Archive Bot is almost entirely written by AI.
+
+
 # Blue Archive model viewer (PoC)
 
 `export_models.py` pulls character models out of the game's Unity asset bundles
